@@ -31,21 +31,35 @@ async function showDiffAndPrompt(deliveryPath, devPath) {
     if (isJson) {
         const oldJson = JSON.parse(oldRaw);
         const newJson = JSON.parse(newRaw);
-        const diffEntries = compareJsonObjects(oldJson.dependencies || {}, newJson.dependencies || {});
-        const table = new cli_table3_1.default({
-            head: [chalk_1.default.gray('Package'), chalk_1.default.gray('Delivery Repo'), chalk_1.default.gray('Dev Repo')],
-            colWidths: [25, 30, 30],
-            wordWrap: true,
-        });
-        for (const [pkg, oldVal, newVal] of diffEntries) {
-            const same = oldVal === newVal;
-            table.push([
-                pkg,
-                same ? chalk_1.default.gray(oldVal) : chalk_1.default.red(oldVal || '-'),
-                same ? chalk_1.default.gray(newVal) : chalk_1.default.green(newVal || '-'),
-            ]);
+        const allKeys = new Set([...Object.keys(oldJson), ...Object.keys(newJson)]);
+        for (const section of allKeys) {
+            const oldSection = oldJson[section] ?? {};
+            const newSection = newJson[section] ?? {};
+            const isObject = typeof oldSection === 'object' &&
+                typeof newSection === 'object' &&
+                !Array.isArray(oldSection) &&
+                !Array.isArray(newSection);
+            if (!isObject)
+                continue;
+            const diffEntries = compareJsonObjects(oldSection, newSection).filter(([, oldVal, newVal]) => oldVal !== newVal);
+            if (diffEntries.length === 0)
+                continue;
+            console.log(chalk_1.default.cyan.bold(`\n📦 ${section}`));
+            const table = new cli_table3_1.default({
+                head: [chalk_1.default.gray('Key'), chalk_1.default.gray('Delivery Repo'), chalk_1.default.gray('Dev Repo')],
+                colWidths: [30, 30, 30],
+                wordWrap: true,
+            });
+            for (const [key, oldVal, newVal] of diffEntries) {
+                const same = oldVal === newVal;
+                table.push([
+                    key,
+                    same ? chalk_1.default.gray(oldVal) : chalk_1.default.red(oldVal || '-'),
+                    same ? chalk_1.default.gray(newVal) : chalk_1.default.green(newVal || '-'),
+                ]);
+            }
+            console.log(table.toString());
         }
-        console.log(table.toString());
     }
     else {
         const diff = (0, diff_1.diffLines)(oldRaw, newRaw);
@@ -54,8 +68,6 @@ async function showDiffAndPrompt(deliveryPath, devPath) {
             colWidths: [60, 60],
             wordWrap: true,
         });
-        let left = '';
-        let right = '';
         for (const part of diff) {
             const lines = part.value.trimEnd().split('\n');
             for (const line of lines) {
