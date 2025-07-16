@@ -10,6 +10,16 @@ const diff_1 = require("diff");
 const fs_extra_1 = __importDefault(require("fs-extra"));
 const inquirer_1 = __importDefault(require("inquirer"));
 const path_1 = __importDefault(require("path"));
+function compareJsonObjects(delivery, dev) {
+    const keys = new Set([...Object.keys(delivery), ...Object.keys(dev)]);
+    const result = [];
+    for (const key of keys) {
+        const oldVal = delivery[key] ?? '';
+        const newVal = dev[key] ?? '';
+        result.push([key, oldVal, newVal]);
+    }
+    return result;
+}
 async function showDiffAndPrompt(deliveryPath, devPath) {
     const fileName = path_1.default.basename(deliveryPath);
     const isJson = fileName.endsWith('.json');
@@ -21,20 +31,18 @@ async function showDiffAndPrompt(deliveryPath, devPath) {
     if (isJson) {
         const oldJson = JSON.parse(oldRaw);
         const newJson = JSON.parse(newRaw);
-        const allKeys = new Set([...Object.keys(oldJson), ...Object.keys(newJson)]);
+        const diffEntries = compareJsonObjects(oldJson.dependencies || {}, newJson.dependencies || {});
         const table = new cli_table3_1.default({
-            head: [chalk_1.default.gray('Key'), chalk_1.default.gray('Delivery'), chalk_1.default.gray('Dev')],
+            head: [chalk_1.default.gray('Package'), chalk_1.default.gray('Delivery Repo'), chalk_1.default.gray('Dev Repo')],
             colWidths: [25, 30, 30],
             wordWrap: true,
         });
-        for (const key of Array.from(allKeys)) {
-            const oldVal = oldJson[key];
-            const newVal = newJson[key];
+        for (const [pkg, oldVal, newVal] of diffEntries) {
             const same = oldVal === newVal;
             table.push([
-                key,
-                same ? chalk_1.default.gray(oldVal) : chalk_1.default.red(oldVal ?? '-'),
-                same ? chalk_1.default.gray(newVal) : chalk_1.default.green(newVal ?? '-'),
+                pkg,
+                same ? chalk_1.default.gray(oldVal) : chalk_1.default.red(oldVal || '-'),
+                same ? chalk_1.default.gray(newVal) : chalk_1.default.green(newVal || '-'),
             ]);
         }
         console.log(table.toString());

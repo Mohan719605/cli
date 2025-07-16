@@ -4,7 +4,19 @@ import { diffLines } from 'diff';
 import fs from 'fs-extra';
 import inquirer from 'inquirer';
 import path from 'path';
+function compareJsonObjects(delivery: any, dev: any): [string, string, string][] {
+  const keys = new Set([...Object.keys(delivery), ...Object.keys(dev)]);
+  const result: [string, string, string][] = [];
 
+  for (const key of keys) {
+    const oldVal = delivery[key] ?? '';
+    const newVal = dev[key] ?? '';
+
+    result.push([key, oldVal, newVal]);
+  }
+
+  return result;
+}
 export async function showDiffAndPrompt(deliveryPath: string, devPath: string) {
   const fileName = path.basename(deliveryPath);
   const isJson = fileName.endsWith('.json');
@@ -19,29 +31,27 @@ export async function showDiffAndPrompt(deliveryPath: string, devPath: string) {
   if (isJson) {
     const oldJson = JSON.parse(oldRaw);
     const newJson = JSON.parse(newRaw);
-    const allKeys = new Set([...Object.keys(oldJson), ...Object.keys(newJson)]);
+
+    const diffEntries = compareJsonObjects(oldJson.dependencies || {}, newJson.dependencies || {});
 
     const table = new Table({
-      head: [chalk.gray('Key'), chalk.gray('Delivery'), chalk.gray('Dev')],
+      head: [chalk.gray('Package'), chalk.gray('Delivery Repo'), chalk.gray('Dev Repo')],
       colWidths: [25, 30, 30],
       wordWrap: true,
     });
 
-    for (const key of Array.from(allKeys)) {
-      const oldVal = oldJson[key];
-      const newVal = newJson[key];
-
+    for (const [pkg, oldVal, newVal] of diffEntries) {
       const same = oldVal === newVal;
-
       table.push([
-        key,
-        same ? chalk.gray(oldVal) : chalk.red(oldVal ?? '-'),
-        same ? chalk.gray(newVal) : chalk.green(newVal ?? '-'),
+        pkg,
+        same ? chalk.gray(oldVal) : chalk.red(oldVal || '-'),
+        same ? chalk.gray(newVal) : chalk.green(newVal || '-'),
       ]);
     }
 
     console.log(table.toString());
-  } else {
+  }
+else {
     const diff = diffLines(oldRaw, newRaw);
 
     const table = new Table({
