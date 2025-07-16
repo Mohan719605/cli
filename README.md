@@ -20,8 +20,8 @@ A powerful command-line tool that helps you compare and upgrade configuration fi
 Clone and install globally:
 
 ```bash
-git clone https://github.com/your-org/portal-upgrade-cli.git
-cd portal-upgrade-cli
+git clone https://github.com/Mohan719605/cli.git
+cd Cli-task
 npm install -g .
 ```
 ## Usage
@@ -39,3 +39,10 @@ if from remote-repo
 ```bash
 portal-upgrade upgrade --dev https://github.com/Sapiens-Digital01/sapiens-digital-portal.git --files ./apps/agent-portal/next.config.js
 ```
+
+## If u wanna change code and use it
+Run in path of cli-task project
+```bash
+npx tsc
+```
+It will update your dist files accordingly and update CLI-TOOL globally
