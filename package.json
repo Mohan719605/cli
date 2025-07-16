@@ -1,0 +1,32 @@
+{
+  "name": "cli-task",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "bin": {
+    "portal-upgrade": "dist/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "chalk": "^5.4.1",
+    "cli-table3": "^0.6.5",
+    "commander": "^14.0.0",
+    "diff": "^8.0.2",
+    "fs-extra": "^11.3.0",
+    "inquirer": "^12.7.0",
+    "simple-git": "^3.28.0",
+    "tmp": "^0.2.3",
+    "tmp-promise": "^3.0.3"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^11.0.4",
+    "@types/node": "^24.0.14",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  }
+}
