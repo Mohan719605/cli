@@ -7,8 +7,9 @@ git clone https://github.com/Mohan719605/cli.git
 cd cli
 npm i
 ```
-Install CLI globally
+Run and Install CLI globally
 ```bash
+npx tsc
 npm install -g .
 ```
 ## Usage
