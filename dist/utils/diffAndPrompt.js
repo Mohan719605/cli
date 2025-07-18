@@ -47,7 +47,7 @@ async function showDiffAndPrompt(deliveryPath, devPath) {
             console.log(chalk_1.default.cyan.bold(`\n📦 ${section}`));
             const table = new cli_table3_1.default({
                 head: [chalk_1.default.gray('Key'), chalk_1.default.gray('Delivery Repo'), chalk_1.default.gray('Dev Repo')],
-                colWidths: [30, 30, 30],
+                colWidths: [30, 30, 50],
                 wordWrap: true,
             });
             for (const [key, oldVal, newVal] of diffEntries) {
@@ -64,9 +64,13 @@ async function showDiffAndPrompt(deliveryPath, devPath) {
     else {
         const diff = (0, diff_1.diffLines)(oldRaw, newRaw);
         const table = new cli_table3_1.default({
-            head: [chalk_1.default.gray('Delivery Repo'), chalk_1.default.gray('Dev Repo')],
-            colWidths: [60, 60],
+            head: [chalk_1.default.gray('Removed from Delivery'), chalk_1.default.gray('Added in Dev')],
+            colWidths: [40, 60],
             wordWrap: true,
+            style: {
+                head: [],
+                border: [],
+            },
         });
         for (const part of diff) {
             const lines = part.value.trimEnd().split('\n');
@@ -76,12 +80,6 @@ async function showDiffAndPrompt(deliveryPath, devPath) {
                 }
                 else if (part.removed) {
                     table.push([chalk_1.default.red(`- ${line}`), '']);
-                }
-                else {
-                    table.push([
-                        chalk_1.default.gray(`  ${line}`),
-                        chalk_1.default.gray(`  ${line}`),
-                    ]);
                 }
             }
         }

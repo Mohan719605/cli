@@ -57,7 +57,7 @@ export async function showDiffAndPrompt(deliveryPath: string, devPath: string) {
 
       const table = new Table({
         head: [chalk.gray('Key'), chalk.gray('Delivery Repo'), chalk.gray('Dev Repo')],
-        colWidths: [30, 30, 30],
+        colWidths: [30, 30, 50],
         wordWrap: true,
       });
 
@@ -75,30 +75,29 @@ export async function showDiffAndPrompt(deliveryPath: string, devPath: string) {
   } else {
     const diff = diffLines(oldRaw, newRaw);
 
-    const table = new Table({
-      head: [chalk.gray('Delivery Repo'), chalk.gray('Dev Repo')],
-      colWidths: [60, 60],
-      wordWrap: true,
-    });
+  const table = new Table({
+    head: [chalk.gray('Removed from Delivery'), chalk.gray('Added in Dev')],
+    colWidths: [40, 60],
+    wordWrap: true,
+    style: {
+      head: [],
+      border: [],
+    },
+  });
 
-    for (const part of diff) {
-      const lines = part.value.trimEnd().split('\n');
+  for (const part of diff) {
+    const lines = part.value.trimEnd().split('\n');
 
-      for (const line of lines) {
-        if (part.added) {
-          table.push(['', chalk.green(`+ ${line}`)]);
-        } else if (part.removed) {
-          table.push([chalk.red(`- ${line}`), '']);
-        } else {
-          table.push([
-            chalk.gray(`  ${line}`),
-            chalk.gray(`  ${line}`),
-          ]);
-        }
+    for (const line of lines) {
+      if (part.added) {
+        table.push(['', chalk.green(`+ ${line}`)]);
+      } else if (part.removed) {
+        table.push([chalk.red(`- ${line}`), '']);
       }
     }
+  }
 
-    console.log(table.toString());
+  console.log(table.toString());
   }
 
   const { apply } = await inquirer.prompt([

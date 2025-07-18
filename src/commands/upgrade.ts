@@ -25,7 +25,7 @@ export async function upgradeCommand(opts: UpgradeOptions) {
     process.exit(1);
   }
 
-  // 1. Setup dev repo path (clone if URL)
+
   let devRepoPath = '';
   if (isGitUrl(opts.dev)) {
     const temp = await tmp.dir({ unsafeCleanup: true });
@@ -38,7 +38,7 @@ export async function upgradeCommand(opts: UpgradeOptions) {
 
   const deliveryRepo = process.cwd();
 
-  // 2. Split user file input
+  //  Split user file input
   const filePaths = opts.files.split(',').map(p => p.trim());
 
   for (const relativePath of filePaths) {
