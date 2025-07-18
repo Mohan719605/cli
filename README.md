@@ -17,11 +17,15 @@ A powerful command-line tool that helps you compare and upgrade configuration fi
 
 ## 📦 Installation
 
-Clone and install globally:
+Clone and install packages:
 
 ```bash
 git clone https://github.com/Mohan719605/cli.git
-cd Cli-task
+cd cli
+npm i
+```
+Install globally
+```bash
 npm install -g .
 ```
 ## Usage
