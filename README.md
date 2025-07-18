@@ -1,21 +1,4 @@
-# 🛠️ Portal Upgrade CLI
-
-A powerful command-line tool that helps you compare and upgrade configuration files between your local delivery repo and the dev version of the Portal Foundation Template. It displays diffs, highlights changes side-by-side Git-style, and lets you selectively apply updates with one click.
-
----
-
-## 🚀 Features
-
-- Clone or use a local dev repo path
-- Compare multiple files including JSON, TS, JS, and config files
-- Accept or skip each change
-- 🔴🟢 Git-style side-by-side diff in the terminal
-- Works with any GitHub or local repo
-- Smart JSON key comparison for package.json, tsconfig.json, etc.
-
----
-
-## 📦 Installation
+## Installation
 
 Clone and install packages:
 
@@ -24,7 +7,7 @@ git clone https://github.com/Mohan719605/cli.git
 cd cli
 npm i
 ```
-Install globally
+Install CLI globally
 ```bash
 npm install -g .
 ```
