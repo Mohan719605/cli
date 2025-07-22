@@ -22,7 +22,6 @@ async function upgradeCommand(opts) {
         console.error('❌ Please provide --files <comma_separated_paths>');
         process.exit(1);
     }
-    // 1. Setup dev repo path (clone if URL)
     let devRepoPath = '';
     if (isGitUrl(opts.dev)) {
         const temp = await tmp_promise_1.default.dir({ unsafeCleanup: true });
@@ -34,13 +33,13 @@ async function upgradeCommand(opts) {
         devRepoPath = path_1.default.resolve(opts.dev);
     }
     const deliveryRepo = process.cwd();
-    // 2. Split user file input
+    //  Split user file input
     const filePaths = opts.files.split(',').map(p => p.trim());
     for (const relativePath of filePaths) {
         const devPath = path_1.default.join(devRepoPath, relativePath);
         const deliveryPath = path_1.default.join(deliveryRepo, relativePath);
         if (await fs_extra_1.default.pathExists(devPath) && await fs_extra_1.default.pathExists(deliveryPath)) {
-            await (0, diffAndPrompt_1.showDiffAndPrompt)(deliveryPath, devPath);
+            await (0, diffAndPrompt_1.showDiffAndPrompt)(deliveryPath, devPath, relativePath);
         }
         else {
             console.warn(`⚠️  Missing file in one of the repos: ${chalk_1.default.yellow(relativePath)}`);

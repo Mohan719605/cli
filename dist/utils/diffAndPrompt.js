@@ -10,6 +10,7 @@ const diff_1 = require("diff");
 const fs_extra_1 = __importDefault(require("fs-extra"));
 const inquirer_1 = __importDefault(require("inquirer"));
 const path_1 = __importDefault(require("path"));
+const diffAndPromptJson_1 = require("./diffAndPromptJson");
 function compareJsonObjects(delivery, dev) {
     const keys = new Set([...Object.keys(delivery), ...Object.keys(dev)]);
     const result = [];
@@ -20,7 +21,7 @@ function compareJsonObjects(delivery, dev) {
     }
     return result;
 }
-async function showDiffAndPrompt(deliveryPath, devPath) {
+async function showDiffAndPrompt(deliveryPath, devPath, relativePath) {
     const fileName = path_1.default.basename(deliveryPath);
     const isJson = fileName.endsWith('.json');
     const [oldRaw, newRaw] = await Promise.all([
@@ -29,37 +30,7 @@ async function showDiffAndPrompt(deliveryPath, devPath) {
     ]);
     console.log(chalk_1.default.blue.bold(`\n📄 File: ${deliveryPath.replace(process.cwd(), '.')}`));
     if (isJson) {
-        const oldJson = JSON.parse(oldRaw);
-        const newJson = JSON.parse(newRaw);
-        const allKeys = new Set([...Object.keys(oldJson), ...Object.keys(newJson)]);
-        for (const section of allKeys) {
-            const oldSection = oldJson[section] ?? {};
-            const newSection = newJson[section] ?? {};
-            const isObject = typeof oldSection === 'object' &&
-                typeof newSection === 'object' &&
-                !Array.isArray(oldSection) &&
-                !Array.isArray(newSection);
-            if (!isObject)
-                continue;
-            const diffEntries = compareJsonObjects(oldSection, newSection).filter(([, oldVal, newVal]) => oldVal !== newVal);
-            if (diffEntries.length === 0)
-                continue;
-            console.log(chalk_1.default.cyan.bold(`\n📦 ${section}`));
-            const table = new cli_table3_1.default({
-                head: [chalk_1.default.gray('Key'), chalk_1.default.gray('Delivery Repo'), chalk_1.default.gray('Dev Repo')],
-                colWidths: [30, 30, 50],
-                wordWrap: true,
-            });
-            for (const [key, oldVal, newVal] of diffEntries) {
-                const same = oldVal === newVal;
-                table.push([
-                    key,
-                    same ? chalk_1.default.gray(oldVal) : chalk_1.default.red(oldVal || '-'),
-                    same ? chalk_1.default.gray(newVal) : chalk_1.default.green(newVal || '-'),
-                ]);
-            }
-            console.log(table.toString());
-        }
+        (0, diffAndPromptJson_1.showDiffAndPromptJson)(deliveryPath, devPath, relativePath);
     }
     else {
         const diff = (0, diff_1.diffLines)(oldRaw, newRaw);

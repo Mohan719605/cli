@@ -4,6 +4,7 @@ import simpleGit from 'simple-git';
 import tmp from 'tmp-promise';
 import chalk from 'chalk';
 import { showDiffAndPrompt } from '../utils/diffAndPrompt';
+import { showDiffAndPromptJson } from '../utils/diffAndPromptJson';
 
 function isGitUrl(url: string): boolean {
   return url.startsWith('http') || url.endsWith('.git');
@@ -46,7 +47,8 @@ export async function upgradeCommand(opts: UpgradeOptions) {
     const deliveryPath = path.join(deliveryRepo, relativePath);
 
     if (await fs.pathExists(devPath) && await fs.pathExists(deliveryPath)) {
-      await showDiffAndPrompt(deliveryPath, devPath);
+      
+       await showDiffAndPrompt(deliveryPath, devPath,relativePath);
     } else {
       console.warn(`⚠️  Missing file in one of the repos: ${chalk.yellow(relativePath)}`);
     }

@@ -4,6 +4,7 @@ import { diffLines } from 'diff';
 import fs from 'fs-extra';
 import inquirer from 'inquirer';
 import path from 'path';
+import { showDiffAndPromptJson } from './diffAndPromptJson';
 
 function compareJsonObjects(delivery: any, dev: any): [string, string, string][] {
   const keys = new Set([...Object.keys(delivery), ...Object.keys(dev)]);
@@ -18,7 +19,7 @@ function compareJsonObjects(delivery: any, dev: any): [string, string, string][]
   return result;
 }
 
-export async function showDiffAndPrompt(deliveryPath: string, devPath: string) {
+export async function showDiffAndPrompt(deliveryPath: string, devPath: string,relativePath: string) {
   const fileName = path.basename(deliveryPath);
   const isJson = fileName.endsWith('.json');
 
@@ -30,48 +31,7 @@ export async function showDiffAndPrompt(deliveryPath: string, devPath: string) {
   console.log(chalk.blue.bold(`\n📄 File: ${deliveryPath.replace(process.cwd(), '.')}`));
 
   if (isJson) {
-    const oldJson = JSON.parse(oldRaw);
-    const newJson = JSON.parse(newRaw);
-
-    const allKeys = new Set([...Object.keys(oldJson), ...Object.keys(newJson)]);
-
-    for (const section of allKeys) {
-      const oldSection = oldJson[section] ?? {};
-      const newSection = newJson[section] ?? {};
-
-      const isObject =
-        typeof oldSection === 'object' &&
-        typeof newSection === 'object' &&
-        !Array.isArray(oldSection) &&
-        !Array.isArray(newSection);
-
-      if (!isObject) continue;
-
-      const diffEntries = compareJsonObjects(oldSection, newSection).filter(
-        ([, oldVal, newVal]) => oldVal !== newVal
-      );
-
-      if (diffEntries.length === 0) continue;
-
-      console.log(chalk.cyan.bold(`\n📦 ${section}`));
-
-      const table = new Table({
-        head: [chalk.gray('Key'), chalk.gray('Delivery Repo'), chalk.gray('Dev Repo')],
-        colWidths: [30, 30, 50],
-        wordWrap: true,
-      });
-
-      for (const [key, oldVal, newVal] of diffEntries) {
-        const same = oldVal === newVal;
-        table.push([
-          key,
-          same ? chalk.gray(oldVal) : chalk.red(oldVal || '-'),
-          same ? chalk.gray(newVal) : chalk.green(newVal || '-'),
-        ]);
-      }
-
-      console.log(table.toString());
-    }
+   showDiffAndPromptJson(deliveryPath,devPath,relativePath)
   } else {
     const diff = diffLines(oldRaw, newRaw);
 
