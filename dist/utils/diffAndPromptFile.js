@@ -46,7 +46,7 @@ function readFileLines(filename) {
     const content = fs.readFileSync(filename, "utf-8");
     return content.split(/\r?\n/);
 }
-// Improved move detection with index mapping
+//move detection with index mapping
 function findMovesWithIndices(deleted, inserted) {
     const movesDel = [];
     const movesIns = [];

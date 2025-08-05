@@ -1,3 +1,4 @@
+
 import * as fs from "fs";
 import * as path from "path";
 import chalk from "chalk";
@@ -108,7 +109,7 @@ function generateDiff(oldLines: string[], newLines: string[]): DiffChunk[] {
   return diffs;
 }
 
-// Main function to show diff and prompt user
+
 export async function showDiffAndPromptFile(deliveryPath: string, devPath: string) {
   if (!fs.existsSync(deliveryPath) || !fs.existsSync(devPath)) {
     console.error(chalk.red("File(s) not found"));
@@ -163,19 +164,19 @@ export async function showDiffAndPromptFile(deliveryPath: string, devPath: strin
         break;
 
       case "move":
-        // Only show each move once per appearance per side
+     
         if (typeof chunk.fromIndex === "number" && typeof chunk.toIndex === "number") {
-          // Create a unique move key for this line content and locations
+  
           const moveKey = `${chunk.text}|${chunk.fromIndex}->${chunk.toIndex}`;
 
-          // Old file side: show move origin (moved to X)
+         
           if (oldLineNum - 1 === chunk.fromIndex && !renderedMoves.has("old"+moveKey)) {
             leftText = chalk.bgCyan.black(`${oldLineNum.toString().padStart(4)} | - ${chunk.text} (moved to ${chunk.toIndex + 1})`);
             rightText = "     ";
             oldLineNum++;
             renderedMoves.add("old"+moveKey);
           }
-          // New file side: show move destination (moved from Y)
+          
           else if (newLineNum - 1 === chunk.toIndex && !renderedMoves.has("new"+moveKey)) {
             leftText = "     ";
             rightText = chalk.bgCyan.black(`${newLineNum.toString().padStart(4)} | + ${chunk.text} (moved from ${chunk.fromIndex + 1})`);
@@ -186,7 +187,7 @@ export async function showDiffAndPromptFile(deliveryPath: string, devPath: strin
         break;
     }
 
-    // Only push a row if at least one side is non-empty (avoid blank lines)
+   
     if (leftText.trim() || rightText.trim()) {
       table.push([leftText, rightText]);
     }

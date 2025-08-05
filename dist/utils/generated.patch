@@ -1,0 +1,178 @@
+Index: next.config.js
+===================================================================
+--- next.config.js
++++ next.config.js
+@@ -1,45 +1,128 @@
+-//@ts-check
+-// eslint-disable-next-line @typescript-eslint/no-var-requires
+-const { composePlugins, withNx } = require('@nx/next');
+-
+-/**
+- * @type {import('@nx/next/plugins/with-nx').WithNxOptions}
+- **/
+-const nextConfig = {
+-  nx: {
+-    // Set this to true if you would like to to use SVGR
+-    // See: https://github.com/gregberge/svgr
+-    svgr: true,
+-  },
+-
+-  compiler: {
+-    // For other options, see https://styled-components.com/docs/tooling#babel-plugin
+-    styledComponents: true,
+-  },
+-  serverRuntimeConfig: {
+-    APP_VERSION: '-',
+-    //Supported default implemented instances : mongoose | ace
+-    NEXT_KEYCLOAK_CLIENT_ID: process.env.NEXT_KEYCLOAK_CLIENT_ID,
+-    NEXT_KEYCLOAK_CLIENT_SECRET: process.env.NEXT_KEYCLOAK_CLIENT_SECRET,
+-    NEXT_KEYCLOAK_ISSUER: process.env.NEXT_KEYCLOAK_ISSUER,
+-    NEXT_PUBLIC_HOST_URL: process.env.NEXT_PUBLIC_HOST_URL,
+-    DB_NAME: process.env.DB_NAME,
+-    DB_URL: process.env.DB_URL,
+-    //Supported default implemented instances : mongoose | ace
+-    CONFIGURATION_OVERRIDES: process.env.CONFIGURATION_OVERRIDES,
+-  },
+-  publicRuntimeConfig: {
+-    BACKEND_URL: process.env.NEXT_PUBLIC_BACKEND_URL,
+-    API_IMPLEMENTATION: process.env.API_IMPLEMENTATION,
+-    CACHE_TIME: process.env.CACHE_TIME,
+-    CONFIGURATION: process.env.CONFIGURATION,
+-    GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
+-  },
+-};
+-
+-const plugins = [
+-  // Add more Next.js plugins to this list if needed.
+-  withNx,
+-];
+-
+-module.exports = composePlugins(...plugins)(nextConfig);
++const { composePlugins, withNx } = require('@nx/next');
++const packageJson = require('./package.json');
++const mfConfig = require('./module-federation.config');
++const { FederatedTypesPlugin } = require('@module-federation/typescript');
++const { NextFederationPlugin } = require('@module-federation/nextjs-mf');
++
++const headers = async () => {
++  return [
++    {
++      source: '/(.*)?', // Matches all pages
++      headers: [
++        {
++          key: 'Access-Control-Allow-Origin',
++          value: `${process.env.ACCESS_ORIGIN || ''}`,
++        },
++        {
++          key: 'Access-Control-Allow-Headers',
++          value: `${
++            process.env.ACCESS_ORIGIN ? 'Content-Type,Accept,Authorization' : ''
++          }`,
++        },
++        {
++          key: 'Content-Security-Policy',
++          value: `frame-ancestors 'self' ${process.env.FRAME_ANCESTORS || ''} ${
++            process.env.X_FRAME_OPTIONS || ''
++          }`,
++        },
++      ],
++    },
++  ];
++};
++/**
++ * @type {import('@nx/next/plugins/with-nx').WithNxOptions}
++ **/
++const nextConfig = {
++  nx: {
++    // Set this to true if you would like to to use SVGR
++    // See: https://github.com/gregberge/svgr
++    svgr: true,
++  },
++
++  webpack: (config, { isServer }) => {
++    if (!isServer && process.env.NEXT_PUBLIC_MFE_ENABLED === 'true') {
++      config.plugins.push(
++        new NextFederationPlugin(mfConfig),
++        new FederatedTypesPlugin({ federationConfig: mfConfig })
++      );
++    }
++    config.experiments = {
++      ...config.experiments,
++      topLevelAwait: true,
++    };
++    return config;
++  },
++  compiler: {
++    styledComponents: true,
++  },
++  headers,
++  poweredByHeader: false,
++  serverRuntimeConfig: {
++    //
++    // NEXT_AUTH_SECRET: process.env.NEXT_AUTH_SECRET,
++    // NEXTAUTH_URL: process.env.NEXT_PUBLIC_HOST_URL,
++    APP_VERSION: packageJson?.version || '-',
++    NEXT_KEYCLOAK_CLIENT_ID: process.env.NEXT_KEYCLOAK_CLIENT_ID,
++    NEXT_KEYCLOAK_CLIENT_SECRET: process.env.NEXT_KEYCLOAK_CLIENT_SECRET,
++    NEXT_KEYCLOAK_ISSUER: process.env.NEXT_KEYCLOAK_ISSUER,
++    CONFIGURATION_OVERRIDES: process.env.CONFIGURATION_OVERRIDES,
++    PORTAL_PROVIDERS: process.env.PORTAL_PROVIDERS,
++    PERMISSIONS_REDIS_ENABLED: process.env.PERMISSIONS_REDIS_ENABLED,
++    REDIS_URL: process.env.REDIS_URL,
++    REDIS_CACHE_EXPIRY_SEC: process.env.REDIS_CACHE_EXPIRY_SEC,
++    ROLE_MAPPER_URL: process.env.ROLE_MAPPER_URL,
++    USER_ROLES_URL: process.env.USER_ROLES_URL,
++    PERMISSIONS_ENABLED: process.env.PERMISSIONS_ENABLED,
++    PERMISSIONS_OPA_ENABLED: process.env.PERMISSIONS_OPA_ENABLED,
++    OPA_URL: process.env.OPA_URL,
++    OPA_PORTAL_CONFIG: process.env.OPA_PORTAL_CONFIG,
++    LAYERS: process.env.LAYERS,
++    LAYERS_ENABLED: process.env.LAYERS_ENABLED,
++    ENABLE_ID_ENCRYPTIONS: process.env.ENABLE_ID_ENCRYPTIONS,
++    ID_ENCRYPTION_PREFIX: process.env.ID_ENCRYPTION_PREFIX,
++    GROWTHBOOK_ENABLED: process.env.GROWTHBOOK_ENABLED,
++    GROWTHBOOK_CLIENT_KEY: process.env.GROWTHBOOK_CLIENT_KEY,
++    GROWTHBOOK_API_HOST: process.env.GROWTHBOOK_API_HOST,
++    GROWTHBOOK_FLAG: process.env.GROWTHBOOK_FLAG,
++    LITE: process.env.LITE,
++    STATISTICS: process.env.STATISTICS,
++    TASKS: process.env.TASKS,
++    ALL_LIST: process.env.ALL_LIST,
++    POLICIES: process.env.POLICIES,
++    PATH_BASED: process.env.PATH_BASED,
++    PATH_BASED_PREFIX: process.env.PATH_BASED_PREFIX,
++  },
++  publicRuntimeConfig: {
++    BACKEND_URL: process.env.NEXT_PUBLIC_BACKEND_URL,
++    API_IMPLEMENTATION: process.env.API_IMPLEMENTATION,
++    GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
++    CONFIGURATION: process.env.CONFIGURATION,
++    // HOST_URL: process.env.NEXT_PUBLIC_HOST_URL,
++    // IDLE_TIMEOUT: 1000 * 60 * Number(process.env.IDLE_TIMEOUT),
++    // OBJECT_STORAGE_URL: process.env.OBJECT_STORAGE_URL,
++    CACHE_TIME: process.env.CACHE_TIME,
++    NEXT_PUBLIC_INACTIVITY_TIMEOUT: process.env.NEXT_PUBLIC_INACTIVITY_TIMEOUT,
++    NEXT_PUBLIC_HOST_URL: process.env.NEXT_PUBLIC_HOST_URL,
++    NEXT_PUBLIC_AI_ENABLED: process.env.NEXT_PUBLIC_AI_ENABLED,
++    NEXT_PUBLIC_LOGOUT_CALLBACK_URL:
++      process.env.NEXT_PUBLIC_LOGOUT_CALLBACK_URL,
++    JOURNEY_FORMKIT_URL: process.env.JOURNEY_FORMKIT_URL,
++    PATH_BASED: process.env.PATH_BASED,
++    PATH_BASED_PREFIX: process.env.PATH_BASED_PREFIX,
++  },
++  reactStrictMode: false,
++  transpilePackages: ['@sapiens-digital01/ai-chatbot'],
++};
++
++// This is for adding path based routing when enabled via env var
++// It uses the next config options refer here: https://nextjs.org/docs/14/pages/api-reference/next-config-js/basePath
++const PATH_BASED = process.env.PATH_BASED === 'true';
++const PATH_BASED_PREFIX = process.env.PATH_BASED_PREFIX;
++if (PATH_BASED && PATH_BASED_PREFIX) {
++  nextConfig.basePath = PATH_BASED_PREFIX;
++  nextConfig.assetPrefix = `${PATH_BASED_PREFIX}/`;
++}
++
++const plugins = [withNx];
++
++module.exports = composePlugins(...plugins)(nextConfig);
