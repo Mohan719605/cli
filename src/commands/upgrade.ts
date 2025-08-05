@@ -45,6 +45,19 @@ export async function upgradeCommand(opts: UpgradeOptions) {
     process.exit(1);
   }
 
+  // Validate that both branch and tag are not provided
+  if (opts.branch && opts.tag) {
+    console.error(
+      chalk.red(
+        "❌ Error: Both --branch and --tag options cannot be used together."
+      )
+    );
+    console.error(
+      chalk.yellow("ℹ️  Please specify either --branch OR --tag, not both.")
+    );
+    process.exit(1);
+  }
+
   let devRepoPath = "";
   let ref = "";
   let tag: string | undefined = undefined;
@@ -54,15 +67,18 @@ export async function upgradeCommand(opts: UpgradeOptions) {
     const temp = await tmp.dir({ unsafeCleanup: true });
     const git = simpleGit();
     let cloned = false;
+    let wasProvidedViaCLI = false;
 
     // Use CLI input if available
     if (opts.branch) {
       refType = "branch";
       ref = opts.branch;
+      wasProvidedViaCLI = true;
     } else if (opts.tag) {
       refType = "tag";
       ref = opts.tag;
       tag = opts.tag;
+      wasProvidedViaCLI = true;
     }
 
     while (!cloned) {
@@ -71,6 +87,7 @@ export async function upgradeCommand(opts: UpgradeOptions) {
         refType = result.refType;
         ref = result.branch || result.tag || "";
         tag = result.tag;
+        wasProvidedViaCLI = false; // Reset since user is now providing input interactively
 
         if (refType === "tag") {
           tag = result.tag;
@@ -118,15 +135,17 @@ export async function upgradeCommand(opts: UpgradeOptions) {
           );
         }
 
-        const retry = await askRetryOptions(label);
+        const retry = await askRetryOptions(label, wasProvidedViaCLI);
 
         if (retry === "1") {
           ref = "";
           tag = undefined;
+          wasProvidedViaCLI = false; // User will now provide input interactively
         } else if (retry === "2") {
           ref = "";
           tag = undefined;
           refType = "default";
+          wasProvidedViaCLI = false;
         } else {
           console.error(chalk.red("❌ Aborted by user."));
           process.exit(1);

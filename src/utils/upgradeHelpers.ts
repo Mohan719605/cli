@@ -115,25 +115,34 @@ export async function askRefType(): Promise<{
   return { refType, branch, tag };
 }
 
-export async function askRetryOptions(label: string): Promise<string> {
+export async function askRetryOptions(
+  label: string,
+  wasProvidedViaCLI: boolean = false
+): Promise<string> {
+  const choices = [
+    {
+      name: "🔄 Enter new branch/tag",
+      value: "1",
+      description: "Try again with a different branch or tag",
+    },
+    {
+      name: "📌 Use default branch",
+      value: "2",
+      description: "Proceed with the repository's default branch",
+    },
+    {
+      name: "❌ Abort",
+      value: "3",
+      description: "Cancel the upgrade process",
+    },
+  ];
+
+  if (wasProvidedViaCLI) {
+    choices[0].description = "Enter a different branch or tag interactively";
+  }
+
   return await select({
     message: `The specified ${label} may not exist. What would you like to do?`,
-    choices: [
-      {
-        name: "🔄 Enter new branch/tag",
-        value: "1",
-        description: "Try again with a different branch or tag",
-      },
-      {
-        name: "📌 Use default branch",
-        value: "2",
-        description: "Proceed with the repository's default branch",
-      },
-      {
-        name: "❌ Abort",
-        value: "3",
-        description: "Cancel the upgrade process",
-      },
-    ],
+    choices,
   });
 }

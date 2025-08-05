@@ -103,25 +103,29 @@ async function askRefType() {
     }
     return { refType, branch, tag };
 }
-async function askRetryOptions(label) {
+async function askRetryOptions(label, wasProvidedViaCLI = false) {
+    const choices = [
+        {
+            name: "🔄 Enter new branch/tag",
+            value: "1",
+            description: "Try again with a different branch or tag",
+        },
+        {
+            name: "📌 Use default branch",
+            value: "2",
+            description: "Proceed with the repository's default branch",
+        },
+        {
+            name: "❌ Abort",
+            value: "3",
+            description: "Cancel the upgrade process",
+        },
+    ];
+    if (wasProvidedViaCLI) {
+        choices[0].description = "Enter a different branch or tag interactively";
+    }
     return await (0, prompts_1.select)({
         message: `The specified ${label} may not exist. What would you like to do?`,
-        choices: [
-            {
-                name: "🔄 Enter new branch/tag",
-                value: "1",
-                description: "Try again with a different branch or tag",
-            },
-            {
-                name: "📌 Use default branch",
-                value: "2",
-                description: "Proceed with the repository's default branch",
-            },
-            {
-                name: "❌ Abort",
-                value: "3",
-                description: "Cancel the upgrade process",
-            },
-        ],
+        choices,
     });
 }

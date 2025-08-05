@@ -30,6 +30,12 @@ async function upgradeCommand(opts) {
         console.error("❌ Please provide --files <comma_separated_paths>");
         process.exit(1);
     }
+    // Validate that both branch and tag are not provided
+    if (opts.branch && opts.tag) {
+        console.error(chalk_1.default.red("❌ Error: Both --branch and --tag options cannot be used together."));
+        console.error(chalk_1.default.yellow("ℹ️  Please specify either --branch OR --tag, not both."));
+        process.exit(1);
+    }
     let devRepoPath = "";
     let ref = "";
     let tag = undefined;
@@ -38,15 +44,18 @@ async function upgradeCommand(opts) {
         const temp = await tmp_promise_1.default.dir({ unsafeCleanup: true });
         const git = (0, simple_git_1.default)();
         let cloned = false;
+        let wasProvidedViaCLI = false;
         // Use CLI input if available
         if (opts.branch) {
             refType = "branch";
             ref = opts.branch;
+            wasProvidedViaCLI = true;
         }
         else if (opts.tag) {
             refType = "tag";
             ref = opts.tag;
             tag = opts.tag;
+            wasProvidedViaCLI = true;
         }
         while (!cloned) {
             if (!ref) {
@@ -54,6 +63,7 @@ async function upgradeCommand(opts) {
                 refType = result.refType;
                 ref = result.branch || result.tag || "";
                 tag = result.tag;
+                wasProvidedViaCLI = false; // Reset since user is now providing input interactively
                 if (refType === "tag") {
                     tag = result.tag;
                     if (typeof tag === "string") {
@@ -96,15 +106,17 @@ async function upgradeCommand(opts) {
                 else {
                     console.error(chalk_1.default.gray("⛔ An unknown error occurred during cloning."));
                 }
-                const retry = await (0, upgradeHelpers_1.askRetryOptions)(label);
+                const retry = await (0, upgradeHelpers_1.askRetryOptions)(label, wasProvidedViaCLI);
                 if (retry === "1") {
                     ref = "";
                     tag = undefined;
+                    wasProvidedViaCLI = false; // User will now provide input interactively
                 }
                 else if (retry === "2") {
                     ref = "";
                     tag = undefined;
                     refType = "default";
+                    wasProvidedViaCLI = false;
                 }
                 else {
                     console.error(chalk_1.default.red("❌ Aborted by user."));
