@@ -51,30 +51,40 @@ async function upgradeCommand(opts) {
             },
         ]);
         selectedFiles = selected;
+        for (const filename of selectedFiles) {
+            const fileMeta = defaultFiles.find(f => f.filename === filename);
+            let finalPath = '';
+            if (fileMeta) {
+                const { selectedPortal } = await inquirer_1.default.prompt([
+                    {
+                        type: 'list',
+                        name: 'selectedPortal',
+                        message: `📂 Where is ${chalk_1.default.yellow(filename)} located?`,
+                        choices: portalsListConfig_1.sharedPortals.map(p => ({
+                            name: `${p.label} (${path_1.default.join(p.basePath, filename)})`,
+                            value: p.basePath,
+                        })),
+                    },
+                ]);
+                finalPath = path_1.default.join(selectedPortal, filename);
+            }
+            else {
+                finalPath = filename;
+            }
+            const devPath = path_1.default.join(devRepoPath, finalPath);
+            const deliveryPath = path_1.default.join(deliveryRepo, finalPath);
+            if (await fs_extra_1.default.pathExists(devPath) && await fs_extra_1.default.pathExists(deliveryPath)) {
+                await (0, diffAndPrompt_1.showDiffAndPrompt)(deliveryPath, devPath, finalPath);
+            }
+            else {
+                console.warn(`⚠️  Missing file in one of the repos: ${chalk_1.default.yellow(finalPath)}`);
+            }
+        }
     }
     else {
         selectedFiles = opts.files.split(',').map(f => f.trim());
     }
-    for (const filename of selectedFiles) {
-        const fileMeta = defaultFiles.find(f => f.filename === filename);
-        let finalPath = '';
-        if (fileMeta) {
-            const { selectedPortal } = await inquirer_1.default.prompt([
-                {
-                    type: 'list',
-                    name: 'selectedPortal',
-                    message: `📂 Where is ${chalk_1.default.yellow(filename)} located?`,
-                    choices: portalsListConfig_1.sharedPortals.map(p => ({
-                        name: `${p.label} (${path_1.default.join(p.basePath, filename)})`,
-                        value: p.basePath,
-                    })),
-                },
-            ]);
-            finalPath = path_1.default.join(selectedPortal, filename);
-        }
-        else {
-            finalPath = filename;
-        }
+    for (const finalPath of selectedFiles) {
         const devPath = path_1.default.join(devRepoPath, finalPath);
         const deliveryPath = path_1.default.join(deliveryRepo, finalPath);
         if (await fs_extra_1.default.pathExists(devPath) && await fs_extra_1.default.pathExists(deliveryPath)) {

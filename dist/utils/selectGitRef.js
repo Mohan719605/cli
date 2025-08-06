@@ -37,7 +37,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.cloneWithRef = cloneWithRef;
-const inquirer_1 = __importDefault(require("inquirer"));
 const simple_git_1 = __importDefault(require("simple-git"));
 const tmp = __importStar(require("tmp-promise"));
 const chalk_1 = __importDefault(require("chalk"));
@@ -50,53 +49,33 @@ async function cloneWithRef(opts) {
         console.log(chalk_1.default.red(`❌ You can't specify both --branch and --tag at the same time.`));
         process.exit(1);
     }
-    if (opts.branch) {
-        selectedRef = opts.branch;
-        console.log(chalk_1.default.blue(`📦 Using branch '${selectedRef}'...`));
-    }
-    else if (opts.tag) {
-        selectedRef = opts.tag;
-        console.log(chalk_1.default.blue(`🏷️ Using tag '${selectedRef}'...`));
+    if (opts.branch || opts.tag) {
+        console.log(chalk_1.default.yellow('🛰️ Validating specified branch/tag in remote...'));
+        const remoteRefs = await git.listRemote(['--refs', opts.dev]);
+        const remoteBranches = Array.from(remoteRefs.matchAll(/refs\/heads\/([^\n]+)/g)).map(m => m[1]);
+        const remoteTags = Array.from(remoteRefs.matchAll(/refs\/tags\/([^\n]+)/g)).map(m => m[1]);
+        if (opts.branch) {
+            selectedRef = opts.branch;
+            if (!remoteBranches.includes(selectedRef)) {
+                console.log(chalk_1.default.red(`❌ Branch '${selectedRef}' does not exist in remote.`));
+                process.exit(1);
+            }
+            console.log(chalk_1.default.blue(`📦 Using branch '${selectedRef}'...`));
+        }
+        if (opts.tag) {
+            selectedRef = opts.tag;
+            if (!remoteTags.includes(selectedRef)) {
+                console.log(chalk_1.default.red(`❌ Tag '${selectedRef}' does not exist in remote.`));
+                process.exit(1);
+            }
+            console.log(chalk_1.default.blue(`🏷️ Using tag '${selectedRef}'...`));
+        }
     }
     else {
-        console.log(chalk_1.default.yellow('🛰️ Fetching remote refs...'));
-        const remoteRefs = await git.listRemote(['--refs', opts.dev]);
-        const branches = Array.from(remoteRefs.matchAll(/refs\/heads\/([^\n]+)/g)).map(m => m[1]);
-        const tags = Array.from(remoteRefs.matchAll(/refs\/tags\/([^\n]+)/g)).map(m => m[1]);
-        const { refType } = await inquirer_1.default.prompt([
-            {
-                type: 'list',
-                name: 'refType',
-                message: '📂 Do you want to select a branch or a tag?',
-                choices: ['branch', 'tag'],
-            },
-        ]);
-        if (refType === 'branch') {
-            const { selectedBranch } = await inquirer_1.default.prompt([
-                {
-                    type: 'list',
-                    name: 'selectedBranch',
-                    message: '🔀 Choose a branch to check out:',
-                    choices: [{ name: 'develop (default)', value: 'develop' }, ...branches.map(b => ({ name: b, value: b }))],
-                    default: 'develop',
-                },
-            ]);
-            selectedRef = selectedBranch;
-        }
-        else {
-            const { selectedTag } = await inquirer_1.default.prompt([
-                {
-                    type: 'list',
-                    name: 'selectedTag',
-                    message: '🏷️ Choose a tag to check out:',
-                    choices: tags.map(t => ({ name: t, value: t })),
-                },
-            ]);
-            selectedRef = selectedTag;
-        }
+        console.log(chalk_1.default.green(`✅ No branch or tag specified. Proceeding with default branch: '${selectedRef}'`));
     }
-    console.log(chalk_1.default.green(`📥 Cloning '${selectedRef}' from ${opts.dev}...`));
+    console.log(chalk_1.default.green(`📥 Processing '${selectedRef}' from ${opts.dev} into temporary folder (auto-deleted)...`));
     await git.clone(opts.dev, repoPath, ['--branch', selectedRef, '--single-branch']);
-    console.log(chalk_1.default.green('✅ Cloning completed.'));
+    console.log(chalk_1.default.green('✅ Processing completed.'));
     return repoPath;
 }

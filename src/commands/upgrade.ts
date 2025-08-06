@@ -60,12 +60,7 @@ export async function upgradeCommand(opts: UpgradeOptions) {
       },
     ]);
     selectedFiles = selected;
-  } else {
-    selectedFiles = opts.files.split(',').map(f => f.trim());
-  }
-
-
-  for (const filename of selectedFiles) {
+      for (const filename of selectedFiles) {
     const fileMeta = defaultFiles.find(f => f.filename === filename);
 
     let finalPath = '';
@@ -85,6 +80,22 @@ export async function upgradeCommand(opts: UpgradeOptions) {
     } else {
       finalPath = filename;
     }
+
+    const devPath = path.join(devRepoPath, finalPath);
+    const deliveryPath = path.join(deliveryRepo, finalPath);
+
+    if (await fs.pathExists(devPath) && await fs.pathExists(deliveryPath)) {
+      await showDiffAndPrompt(deliveryPath, devPath, finalPath);
+    } else {
+      console.warn(`⚠️  Missing file in one of the repos: ${chalk.yellow(finalPath)}`);
+    }
+  }
+  } else {
+    selectedFiles = opts.files.split(',').map(f => f.trim());
+  }
+
+
+  for (const finalPath of selectedFiles) {
 
     const devPath = path.join(devRepoPath, finalPath);
     const deliveryPath = path.join(deliveryRepo, finalPath);

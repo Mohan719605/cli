@@ -21,66 +21,37 @@ export async function cloneWithRef(opts: CloneOptions): Promise<string> {
     process.exit(1);
   }
 
-  if (opts.branch) {
-    selectedRef = opts.branch;
-    console.log(chalk.blue(`📦 Using branch '${selectedRef}'...`));
-  } else if (opts.tag) {
-    selectedRef = opts.tag;
-    console.log(chalk.blue(`🏷️ Using tag '${selectedRef}'...`));
-  } else {
+  if (opts.branch || opts.tag) {
+    console.log(chalk.yellow('🛰️ Validating specified branch/tag in remote...'));
+    const remoteRefs = await git.listRemote(['--refs', opts.dev]);
 
-    const { useDefault } = await inquirer.prompt([
-      {
-        type: 'confirm',
-        name: 'useDefault',
-        message: `Do you want to clone the default 'develop' branch?`,
-        default: true,
-      },
-    ]);
+    const remoteBranches = Array.from(remoteRefs.matchAll(/refs\/heads\/([^\n]+)/g)).map(m => m[1]);
+    const remoteTags = Array.from(remoteRefs.matchAll(/refs\/tags\/([^\n]+)/g)).map(m => m[1]);
 
-    if (!useDefault) {
-      console.log(chalk.yellow('🛰️ Fetching remote refs...'));
-      const remoteRefs = await git.listRemote(['--refs', opts.dev]);
-      const branches = Array.from(remoteRefs.matchAll(/refs\/heads\/([^\n]+)/g)).map(m => m[1]);
-      const tags = Array.from(remoteRefs.matchAll(/refs\/tags\/([^\n]+)/g)).map(m => m[1]);
-
-      const { refType } = await inquirer.prompt([
-        {
-          type: 'list',
-          name: 'refType',
-          message: '📂 Do you want to select a branch or a tag?',
-          choices: ['branch', 'tag'],
-        },
-      ]);
-
-      if (refType === 'branch') {
-        const { selectedBranch } = await inquirer.prompt([
-          {
-            type: 'list',
-            name: 'selectedBranch',
-            message: '🔀 Choose a branch to check out:',
-            choices: branches.map(b => ({ name: b, value: b })),
-          },
-        ]);
-        selectedRef = selectedBranch;
-      } else {
-        const { selectedTag } = await inquirer.prompt([
-          {
-            type: 'list',
-            name: 'selectedTag',
-            message: '🏷️ Choose a tag to check out:',
-            choices: tags.map(t => ({ name: t, value: t })),
-          },
-        ]);
-        selectedRef = selectedTag;
+    if (opts.branch) {
+      selectedRef = opts.branch;
+      if (!remoteBranches.includes(selectedRef)) {
+        console.log(chalk.red(`❌ Branch '${selectedRef}' does not exist in remote.`));
+        process.exit(1);
       }
-    } else {
-      console.log(chalk.green(`✅ Proceeding with default branch: '${selectedRef}'`));
+      console.log(chalk.blue(`📦 Using branch '${selectedRef}'...`));
     }
+
+    if (opts.tag) {
+      selectedRef = opts.tag;
+      if (!remoteTags.includes(selectedRef)) {
+        console.log(chalk.red(`❌ Tag '${selectedRef}' does not exist in remote.`));
+        process.exit(1);
+      }
+      console.log(chalk.blue(`🏷️ Using tag '${selectedRef}'...`));
+    }
+  } else {
+    console.log(chalk.green(`✅ No branch or tag specified. Proceeding with default branch: '${selectedRef}'`));
   }
 
-  console.log(chalk.green(`📥 Cloning '${selectedRef}' from ${opts.dev} into temporary folder (auto-deleted)...`));
+  console.log(chalk.green(`📥 Processing '${selectedRef}' from ${opts.dev} into temporary folder (auto-deleted)...`));
   await git.clone(opts.dev, repoPath, ['--branch', selectedRef, '--single-branch']);
-  console.log(chalk.green('✅ Cloning completed.'));
+  console.log(chalk.green('✅ Processing completed.'));
+
   return repoPath;
 }
