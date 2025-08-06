@@ -6,19 +6,18 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.upgradeCommand = upgradeCommand;
 const path_1 = __importDefault(require("path"));
 const fs_extra_1 = __importDefault(require("fs-extra"));
-const simple_git_1 = __importDefault(require("simple-git"));
-const tmp_promise_1 = __importDefault(require("tmp-promise"));
 const chalk_1 = __importDefault(require("chalk"));
 const inquirer_1 = __importDefault(require("inquirer"));
 const diffAndPrompt_1 = require("../utils/diffAndPrompt");
 const portalsListConfig_1 = require("../utils/portalsListConfig");
+const selectGitRef_1 = require("../utils/selectGitRef"); // ✅ import helper
 const defaultFiles = [
     { name: 'Next Config File', filename: 'next.config.js' },
     { name: 'Env File', filename: '.env' },
     { name: 'Package File', filename: 'package.json' },
     { name: 'ts-config', filename: 'tsconfig.json' },
     { name: 'Docker File', filename: 'Dockerfile' },
-    { name: 'Portal Registry', filename: 'portal-registry.ts' }
+    { name: 'Portal Registry', filename: 'portal-registry.ts' },
 ];
 function isGitUrl(url) {
     return url.startsWith('http') || url.endsWith('.git');
@@ -29,8 +28,15 @@ async function upgradeCommand(opts) {
         process.exit(1);
     }
     let selectedFiles;
+    let devRepoPath = '';
+    if (isGitUrl(opts.dev)) {
+        devRepoPath = await (0, selectGitRef_1.cloneWithRef)({ dev: opts.dev, branch: opts.branch, tag: opts.tag });
+    }
+    else {
+        devRepoPath = path_1.default.resolve(opts.dev);
+    }
+    const deliveryRepo = process.cwd();
     if (!opts.files) {
-        // Ask User for default files
         const { selected } = await inquirer_1.default.prompt([
             {
                 type: 'checkbox',
@@ -49,23 +55,10 @@ async function upgradeCommand(opts) {
     else {
         selectedFiles = opts.files.split(',').map(f => f.trim());
     }
-    // git/local clone
-    let devRepoPath = '';
-    if (isGitUrl(opts.dev)) {
-        const temp = await tmp_promise_1.default.dir({ unsafeCleanup: true });
-        console.log(`📥 Cloning ${opts.dev}...`);
-        await (0, simple_git_1.default)().clone(opts.dev, temp.path);
-        devRepoPath = temp.path;
-    }
-    else {
-        devRepoPath = path_1.default.resolve(opts.dev);
-    }
-    const deliveryRepo = process.cwd();
     for (const filename of selectedFiles) {
         const fileMeta = defaultFiles.find(f => f.filename === filename);
         let finalPath = '';
         if (fileMeta) {
-            //portal selection
             const { selectedPortal } = await inquirer_1.default.prompt([
                 {
                     type: 'list',

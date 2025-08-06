@@ -20,12 +20,8 @@ export async function showDiffAndPrompt(deliveryPath: string, devPath: string,re
   console.log(chalk.blue.bold(`\n📄 File: ${deliveryPath.replace(process.cwd(), '.')}`));
 
   if (isJson) {
-   showDiffAndPromptJson(deliveryPath,devPath,relativePath)
-  } else{
-    await showDiffAndPromptFile(deliveryPath, devPath);
-  }
-
-  const { apply } = await inquirer.prompt([
+   showDiffAndPromptJson(deliveryPath,devPath,relativePath);
+     const { apply } = await inquirer.prompt([
     {
       type: 'confirm',
       name: 'apply',
@@ -40,4 +36,9 @@ export async function showDiffAndPrompt(deliveryPath: string, devPath: string,re
   } else {
     console.log(chalk.yellow(`⏭️  Skipped: ${deliveryPath}`));
   }
+  } else{
+    await showDiffAndPromptFile(deliveryPath, devPath);
+  }
+
+
 }

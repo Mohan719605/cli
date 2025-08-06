@@ -20,23 +20,23 @@ async function showDiffAndPrompt(deliveryPath, devPath, relativePath) {
     console.log(chalk_1.default.blue.bold(`\n📄 File: ${deliveryPath.replace(process.cwd(), '.')}`));
     if (isJson) {
         (0, diffAndPromptJson_1.showDiffAndPromptJson)(deliveryPath, devPath, relativePath);
+        const { apply } = await inquirer_1.default.prompt([
+            {
+                type: 'confirm',
+                name: 'apply',
+                message: `Apply changes to ${chalk_1.default.yellow(deliveryPath.replace(process.cwd(), '.'))}?`,
+                default: false,
+            },
+        ]);
+        if (apply) {
+            await fs_extra_1.default.writeFile(deliveryPath, newRaw);
+            console.log(chalk_1.default.green(`✅ Updated: ${deliveryPath}`));
+        }
+        else {
+            console.log(chalk_1.default.yellow(`⏭️  Skipped: ${deliveryPath}`));
+        }
     }
     else {
         await (0, diffAndPromptFile_1.showDiffAndPromptFile)(deliveryPath, devPath);
-    }
-    const { apply } = await inquirer_1.default.prompt([
-        {
-            type: 'confirm',
-            name: 'apply',
-            message: `Apply changes to ${chalk_1.default.yellow(deliveryPath.replace(process.cwd(), '.'))}?`,
-            default: false,
-        },
-    ]);
-    if (apply) {
-        await fs_extra_1.default.writeFile(deliveryPath, newRaw);
-        console.log(chalk_1.default.green(`✅ Updated: ${deliveryPath}`));
-    }
-    else {
-        console.log(chalk_1.default.yellow(`⏭️  Skipped: ${deliveryPath}`));
     }
 }

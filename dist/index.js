@@ -8,6 +8,8 @@ program
     .command('upgrade')
     .description('Compare and upgrade files from dev repo to delivery repo')
     .option('--dev <path_or_git_url>', 'Path or Git URL to dev repo')
+    .option('--branch <branch>', 'Branch to clone from')
+    .option('--tag <tag>', 'Tag to checkout after cloning')
     .option('--files <comma_separated_paths>', 'Comma-separated list of files to compare')
     .action(upgrade_1.upgradeCommand);
 program.parse();

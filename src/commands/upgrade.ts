@@ -1,32 +1,31 @@
 import path from 'path';
 import fs from 'fs-extra';
-import simpleGit from 'simple-git';
-import tmp from 'tmp-promise';
 import chalk from 'chalk';
+import tmp from 'tmp-promise';
 import inquirer from 'inquirer';
 import { showDiffAndPrompt } from '../utils/diffAndPrompt';
-
 import { sharedPortals } from '../utils/portalsListConfig';
+import { cloneWithRef } from '../utils/selectGitRef'; // ✅ import helper
 
 type UpgradeOptions = {
   dev?: string;
   files?: string;
+  branch?: string;
+  tag?: string;
 };
-
 
 const defaultFiles = [
   { name: 'Next Config File', filename: 'next.config.js' },
   { name: 'Env File', filename: '.env' },
   { name: 'Package File', filename: 'package.json' },
   { name: 'ts-config', filename: 'tsconfig.json' },
-  {name : 'Docker File',filename :'Dockerfile'},
-  {name :'Portal Registry',filename:'portal-registry.ts'}
+  { name: 'Docker File', filename: 'Dockerfile' },
+  { name: 'Portal Registry', filename: 'portal-registry.ts' },
 ];
 
 function isGitUrl(url: string): boolean {
   return url.startsWith('http') || url.endsWith('.git');
 }
-
 
 export async function upgradeCommand(opts: UpgradeOptions) {
   if (!opts.dev) {
@@ -36,8 +35,17 @@ export async function upgradeCommand(opts: UpgradeOptions) {
 
   let selectedFiles: string[];
 
-  if (!opts.files) {
-    // Ask User for default files
+
+  let devRepoPath = '';
+  if (isGitUrl(opts.dev)) {
+    
+    devRepoPath = await cloneWithRef({ dev: opts.dev, branch: opts.branch, tag: opts.tag });
+  } else {
+    devRepoPath = path.resolve(opts.dev);
+  }
+ 
+  const deliveryRepo = process.cwd();
+    if (!opts.files) {
     const { selected } = await inquirer.prompt([
       {
         type: 'checkbox',
@@ -56,25 +64,12 @@ export async function upgradeCommand(opts: UpgradeOptions) {
     selectedFiles = opts.files.split(',').map(f => f.trim());
   }
 
-  // git/local clone
-  let devRepoPath = '';
-  if (isGitUrl(opts.dev)) {
-    const temp = await tmp.dir({ unsafeCleanup: true });
-    console.log(`📥 Cloning ${opts.dev}...`);
-    await simpleGit().clone(opts.dev, temp.path);
-    devRepoPath = temp.path;
-  } else {
-    devRepoPath = path.resolve(opts.dev);
-  }
-
-  const deliveryRepo = process.cwd();
 
   for (const filename of selectedFiles) {
     const fileMeta = defaultFiles.find(f => f.filename === filename);
 
     let finalPath = '';
     if (fileMeta) {
-      //portal selection
       const { selectedPortal } = await inquirer.prompt([
         {
           type: 'list',
@@ -86,10 +81,9 @@ export async function upgradeCommand(opts: UpgradeOptions) {
           })),
         },
       ]);
-
       finalPath = path.join(selectedPortal, filename);
     } else {
-      finalPath = filename; 
+      finalPath = filename;
     }
 
     const devPath = path.join(devRepoPath, finalPath);

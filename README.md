@@ -17,6 +17,26 @@ Open Terminal in your template or delivery repo
 ```bash
 portal-upgrade upgrade --dev <dev_repo_path_or_git_url> --files <comma_separated_files>
 ```
+## ⚡️ Command Options 
+### If you Know exact branch-name or tag-name to compare code files
+| Option     | Description                                      | Example                                      |
+|------------|--------------------------------------------------|----------------------------------------------|
+| `--dev`    | **REQUIRED.** Path to dev repo or remote Git URL | `--dev ../dev-portal`                        |
+| `--branch` | Branch to use (with git source only)             | `--branch feature/new-ui`                    |
+| `--tag`    | Tag to checkout (with git source only)           | `--tag v2.1.0`                               |
+| `--files`  | Comma-separated list of files to compare         | `--files next.config.js,.env,package.json`   |
+### Else You can select the branch and tag from command line
+![alt text](image.png)
+![alt text](image-1.png)
+
+## Default Files Option
+### If you haven't added --files option. CLI will show default files 
+![alt text](image-3.png)
+### After that You can select whatever portal u wanna update
+![alt text](image-4.png)
+
+
+
 ## Example Command
 If local file
 ```bash
@@ -26,6 +46,7 @@ If from remote-repo
 ```bash
 portal-upgrade upgrade --dev https://github.com/Sapiens-Digital01/sapiens-digital-portal.git --files ./apps/agent-portal/next.config.js
 ```
+
 
 ## If you want to change code and use it
 Run in path of cli-task project

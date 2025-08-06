@@ -1,112 +1,16 @@
-
 import * as fs from "fs";
 import * as path from "path";
 import chalk from "chalk";
 import Table from "cli-table3";
+import inquirer from "inquirer";
+import {generateDiff,parseRange} from './HelperFunctions'
 
-type DiffOp = "equal" | "insert" | "delete" | "move";
 
-interface DiffChunk {
-  op: DiffOp;
-  text: string;
-  moved?: boolean;
-  fromIndex?: number; 
-  toIndex?: number;   
-}
 
-// Read file lines (handles LF and CRLF)
+
 function readFileLines(filename: string): string[] {
   const content = fs.readFileSync(filename, "utf-8");
   return content.split(/\r?\n/);
-}
-
-//move detection with index mapping
-function findMovesWithIndices(
-  deleted: { text: string; idx: number }[],
-  inserted: { text: string; idx: number }[]
-): { movesDel: Array<{ oldIdx: number; newIdx: number }>, movesIns: Array<{ oldIdx: number; newIdx: number }> } {
-  const movesDel: Array<{ oldIdx: number; newIdx: number }> = [];
-  const movesIns: Array<{ oldIdx: number; newIdx: number }> = [];
-  const usedIns = new Set<number>();
-  for (const d of deleted) {
-    for (const i of inserted) {
-      if (!usedIns.has(i.idx) && d.text === i.text) {
-        movesDel.push({ oldIdx: d.idx, newIdx: i.idx });
-        movesIns.push({ oldIdx: d.idx, newIdx: i.idx });
-        usedIns.add(i.idx);
-        break;
-      }
-    }
-  }
-  return { movesDel, movesIns };
-}
-
-// LCS diff with move annotation (fromIndex, toIndex for moves)
-function generateDiff(oldLines: string[], newLines: string[]): DiffChunk[] {
-  const diffs: DiffChunk[] = [];
-  const n = oldLines.length,
-    m = newLines.length;
-  const dp: number[][] = Array.from({ length: n + 1 }, () => Array(m + 1).fill(0));
-
-  for (let i = n - 1; i >= 0; --i) {
-    for (let j = m - 1; j >= 0; --j) {
-      dp[i][j] = oldLines[i] === newLines[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
-    }
-  }
-
-  let i = 0, j = 0;
-  const deleted: { text: string, idx: number }[] = [];
-  const inserted: { text: string, idx: number }[] = [];
-  const deletedIndices: number[] = [];
-  const insertedIndices: number[] = [];
-
-  while (i < n && j < m) {
-    if (oldLines[i] === newLines[j]) {
-      diffs.push({ op: "equal", text: oldLines[i] });
-      i++; j++;
-    } else if (dp[i + 1][j] >= dp[i][j + 1]) {
-      deleted.push({ text: oldLines[i], idx: i });
-      deletedIndices.push(diffs.length);
-      diffs.push({ op: "delete", text: oldLines[i], fromIndex: i });
-      i++;
-    } else {
-      inserted.push({ text: newLines[j], idx: j });
-      insertedIndices.push(diffs.length);
-      diffs.push({ op: "insert", text: newLines[j], toIndex: j });
-      j++;
-    }
-  }
-  while (i < n) {
-    deleted.push({ text: oldLines[i], idx: i });
-    deletedIndices.push(diffs.length);
-    diffs.push({ op: "delete", text: oldLines[i], fromIndex: i });
-    i++;
-  }
-  while (j < m) {
-    inserted.push({ text: newLines[j], idx: j });
-    insertedIndices.push(diffs.length);
-    diffs.push({ op: "insert", text: newLines[j], toIndex: j });
-    j++;
-  }
-
-  // Mark moves with fromIndex/toIndex so we can show correct line numbers for both
-  const { movesDel, movesIns } = findMovesWithIndices(deleted, inserted);
-  for (const move of movesDel) {
-    const dPos = deletedIndices[deleted.findIndex(x => x.idx === move.oldIdx)];
-    diffs[dPos].op = "move";
-    diffs[dPos].moved = true;
-    diffs[dPos].fromIndex = move.oldIdx;
-    diffs[dPos].toIndex = move.newIdx;
-  }
-  for (const move of movesIns) {
-    const iPos = insertedIndices[inserted.findIndex(x => x.idx === move.newIdx)];
-    diffs[iPos].op = "move";
-    diffs[iPos].moved = true;
-    diffs[iPos].fromIndex = move.oldIdx;
-    diffs[iPos].toIndex = move.newIdx;
-  }
-
-  return diffs;
 }
 
 
@@ -115,82 +19,53 @@ export async function showDiffAndPromptFile(deliveryPath: string, devPath: strin
     console.error(chalk.red("File(s) not found"));
     return;
   }
-  const oldLines = readFileLines(deliveryPath);
-  const newLines = readFileLines(devPath);
-
+  let oldLines = readFileLines(deliveryPath);
+  let newLines = readFileLines(devPath);
+  
   const diffs = generateDiff(oldLines, newLines);
+
 
   const table = new Table({
     head: [
       chalk.bold.cyan.underline(path.basename(deliveryPath)),
-      chalk.bold.cyan.underline(path.basename(devPath))
+      chalk.bold.cyan.underline(path.basename(devPath)),
     ],
     colWidths: [60, 60],
-    style: {
-      head: ["cyan"],
-      border: ["grey"]
-    },
+    style: { head: ["cyan"], border: ["grey"] },
     wordWrap: true,
   });
 
-  // For mapping of which moves we've already rendered
   const renderedMoves = new Set<string>();
-
-  let oldLineNum = 1;
-  let newLineNum = 1;
-
+  let oldLineNum = 1, newLineNum = 1;
   for (const chunk of diffs) {
-    let leftText = "";
-    let rightText = "";
-
+    let leftText = "", rightText = "";
     switch (chunk.op) {
       case "equal":
         leftText = chalk.white(`${oldLineNum.toString().padStart(4)} | ${chunk.text}`);
         rightText = chalk.white(`${newLineNum.toString().padStart(4)} | ${chunk.text}`);
-        oldLineNum++;
-        newLineNum++;
-        break;
-
+        oldLineNum++; newLineNum++; break;
       case "insert":
         leftText = "     ";
-        rightText = chalk.green(`${newLineNum.toString().padStart(4)} | + ${chunk.text}`);
-        newLineNum++;
-        break;
-
+        rightText = chalk.green(`${newLineNum.toString().padStart(4)} | + ${chunk.text}`); newLineNum++; break;
       case "delete":
         leftText = chalk.red(`${oldLineNum.toString().padStart(4)} | - ${chunk.text}`);
-        rightText = "     ";
-        oldLineNum++;
-        break;
-
+        rightText = "     "; oldLineNum++; break;
       case "move":
-     
         if (typeof chunk.fromIndex === "number" && typeof chunk.toIndex === "number") {
-  
           const moveKey = `${chunk.text}|${chunk.fromIndex}->${chunk.toIndex}`;
-
-         
-          if (oldLineNum - 1 === chunk.fromIndex && !renderedMoves.has("old"+moveKey)) {
+          if (oldLineNum - 1 === chunk.fromIndex && !renderedMoves.has("old" + moveKey)) {
             leftText = chalk.bgCyan.black(`${oldLineNum.toString().padStart(4)} | - ${chunk.text} (moved to ${chunk.toIndex + 1})`);
-            rightText = "     ";
-            oldLineNum++;
-            renderedMoves.add("old"+moveKey);
-          }
-          
-          else if (newLineNum - 1 === chunk.toIndex && !renderedMoves.has("new"+moveKey)) {
+            rightText = "     "; oldLineNum++; renderedMoves.add("old" + moveKey);
+          } else if (newLineNum - 1 === chunk.toIndex && !renderedMoves.has("new" + moveKey)) {
             leftText = "     ";
             rightText = chalk.bgCyan.black(`${newLineNum.toString().padStart(4)} | + ${chunk.text} (moved from ${chunk.fromIndex + 1})`);
-            newLineNum++;
-            renderedMoves.add("new"+moveKey);
+            newLineNum++; renderedMoves.add("new" + moveKey);
           }
         }
         break;
     }
-
-   
-    if (leftText.trim() || rightText.trim()) {
+    if (leftText.trim() || rightText.trim())
       table.push([leftText, rightText]);
-    }
   }
 
   console.log(chalk.bold.yellow("Diff Results (Old = deliveryPath, New = devPath)"));
@@ -201,5 +76,106 @@ export async function showDiffAndPromptFile(deliveryPath: string, devPath: strin
   );
   console.log(table.toString());
 
+  interface EditAction {
+  type: "insert" | "delete";
+  deliveryAt?: number;
+  devRange?: { start: number, end: number };
+  deliveryRange?: { start: number, end: number };
+}
 
+const plannedEdits: EditAction[] = [];
+
+while (true) {
+  const { action } = await inquirer.prompt([
+    {
+      type: "list",
+      name: "action",
+      message: "Choose operation to apply to delivery file:",
+      choices: [
+        { name: "Insert lines from dev into delivery", value: "insert" },
+        { name: "Delete lines in delivery", value: "delete" },
+        { name: "Finish (write and exit)", value: "done" }
+      ]
+    }
+  ]);
+  if (action === "done") break;
+
+  if (action === "insert") {
+    const { deliveryAtStr } = await inquirer.prompt([
+      {
+        type: "input",
+        name: "deliveryAtStr",
+        message: "Insert BEFORE which delivery line number?",
+        validate: (v) => /^\d+$/.test(v) && parseInt(v) > 0 ? true : "Enter a positive line number."
+      }
+    ]);
+    const deliveryAt = parseInt(deliveryAtStr, 10);
+    const { devRangeStr } = await inquirer.prompt([
+      {
+        type: "input",
+        name: "devRangeStr",
+        message: "Enter dev line number or range to insert (e.g. 5-8 or 10):",
+        validate: v => !!parseRange(v) ? true : "Invalid range."
+      }
+    ]);
+    plannedEdits.push({
+      type: "insert",
+      deliveryAt,
+      devRange: parseRange(devRangeStr)!
+    });
+  }
+
+  if (action === "delete") {
+    const { deliveryRangeStr } = await inquirer.prompt([
+      {
+        type: "input",
+        name: "deliveryRangeStr",
+        message: "Enter delivery line number or range to delete (e.g. 2-4 or 7):",
+        validate: v => !!parseRange(v) ? true : "Invalid range."
+      }
+    ]);
+    plannedEdits.push({
+      type: "delete",
+      deliveryRange: parseRange(deliveryRangeStr)!
+    });
+  }
+}
+
+// Apply all actions, sort edits descending by affected delivery index to prevent index shifts
+plannedEdits.sort((a, b) => {
+  // For deletes/by start of range; for insert/by deliveryAt
+  const indexA = a.type === "delete" ? a.deliveryRange!.start : a.deliveryAt!;
+  const indexB = b.type === "delete" ? b.deliveryRange!.start : b.deliveryAt!;
+  return indexB - indexA;
+});
+
+for (const edit of plannedEdits) {
+  if (edit.type === "insert") {
+    const toInsert = newLines.slice(edit.devRange!.start - 1, edit.devRange!.end);
+    oldLines = [
+      ...oldLines.slice(0, edit.deliveryAt! - 1),
+      ...toInsert,
+      ...oldLines.slice(edit.deliveryAt! - 1)
+    ];
+  }
+  if (edit.type === "delete") {
+    oldLines = [
+      ...oldLines.slice(0, edit.deliveryRange!.start - 1),
+      ...oldLines.slice(edit.deliveryRange!.end)
+    ];
+  }
+}
+
+// Preview result and confirm write
+console.log(chalk.yellowBright("\nPreview of first 16 lines after patch:"));
+console.log(oldLines.slice(0, 16).map((l,i) => chalk.gray(`${(i+1).toString().padStart(4)}:`) + l).join("\n"));
+const { writeFile } = await inquirer.prompt([
+  { type: "confirm", name: "writeFile", message: `Write patched version to delivery?`, default: false }
+]);
+if (writeFile) {
+  await fs.promises.writeFile(deliveryPath, oldLines.join('\n'));
+  console.log(chalk.green("✅ Patch written to disk."));
+} else {
+  console.log(chalk.yellow("No changes written."));
+}
 }
