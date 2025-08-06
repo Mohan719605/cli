@@ -100,7 +100,7 @@ export async function upgradeCommand(opts: UpgradeOptions) {
         }
 
         if (refType === "default") {
-          console.log(chalk.greenBright("✅ Proceeding with default branch."));
+          console.log(chalk.greenBright("✅ Proceeding with default branch (develop)."));
         }
       }
 

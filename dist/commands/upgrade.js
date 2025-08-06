@@ -75,7 +75,7 @@ async function upgradeCommand(opts) {
                     }
                 }
                 if (refType === "default") {
-                    console.log(chalk_1.default.greenBright("✅ Proceeding with default branch."));
+                    console.log(chalk_1.default.greenBright("✅ Proceeding with default branch (develop)."));
                 }
             }
             const cloneOptions = ["--depth", "1"];

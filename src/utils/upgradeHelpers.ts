@@ -28,7 +28,7 @@ export async function askRefType(): Promise<{
       {
         name: "📌 Use default branch",
         value: "default",
-        description: "Clone from the repository's default branch",
+        description: "Clone from the repository's default branch (develop)",
       },
     ],
   });
@@ -128,7 +128,7 @@ export async function askRetryOptions(
     {
       name: "📌 Use default branch",
       value: "2",
-      description: "Proceed with the repository's default branch",
+      description: "Proceed with the repository's default branch (develop)",
     },
     {
       name: "❌ Abort",

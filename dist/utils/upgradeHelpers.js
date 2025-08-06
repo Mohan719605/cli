@@ -24,7 +24,7 @@ async function askRefType() {
             {
                 name: "📌 Use default branch",
                 value: "default",
-                description: "Clone from the repository's default branch",
+                description: "Clone from the repository's default branch (develop)",
             },
         ],
     });
@@ -113,7 +113,7 @@ async function askRetryOptions(label, wasProvidedViaCLI = false) {
         {
             name: "📌 Use default branch",
             value: "2",
-            description: "Proceed with the repository's default branch",
+            description: "Proceed with the repository's default branch (develop)",
         },
         {
             name: "❌ Abort",
