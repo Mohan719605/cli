@@ -28,45 +28,58 @@ export async function cloneWithRef(opts: CloneOptions): Promise<string> {
     selectedRef = opts.tag;
     console.log(chalk.blue(`🏷️ Using tag '${selectedRef}'...`));
   } else {
-    console.log(chalk.yellow('🛰️ Fetching remote refs...'));
-    const remoteRefs = await git.listRemote(['--refs', opts.dev]);
-    const branches = Array.from(remoteRefs.matchAll(/refs\/heads\/([^\n]+)/g)).map(m => m[1]);
-    const tags = Array.from(remoteRefs.matchAll(/refs\/tags\/([^\n]+)/g)).map(m => m[1]);
 
-    const { refType } = await inquirer.prompt([
+    const { useDefault } = await inquirer.prompt([
       {
-        type: 'list',
-        name: 'refType',
-        message: '📂 Do you want to select a branch or a tag?',
-        choices: ['branch', 'tag'],
+        type: 'confirm',
+        name: 'useDefault',
+        message: `Do you want to clone the default 'develop' branch?`,
+        default: true,
       },
     ]);
 
-    if (refType === 'branch') {
-      const { selectedBranch } = await inquirer.prompt([
+    if (!useDefault) {
+      console.log(chalk.yellow('🛰️ Fetching remote refs...'));
+      const remoteRefs = await git.listRemote(['--refs', opts.dev]);
+      const branches = Array.from(remoteRefs.matchAll(/refs\/heads\/([^\n]+)/g)).map(m => m[1]);
+      const tags = Array.from(remoteRefs.matchAll(/refs\/tags\/([^\n]+)/g)).map(m => m[1]);
+
+      const { refType } = await inquirer.prompt([
         {
           type: 'list',
-          name: 'selectedBranch',
-          message: '🔀 Choose a branch to check out:',
-          choices: [{ name: 'develop (default)', value: 'develop' }, ...branches.map(b => ({ name: b, value: b }))],
-          default: 'develop',
+          name: 'refType',
+          message: '📂 Do you want to select a branch or a tag?',
+          choices: ['branch', 'tag'],
         },
       ]);
-      selectedRef = selectedBranch;
+
+      if (refType === 'branch') {
+        const { selectedBranch } = await inquirer.prompt([
+          {
+            type: 'list',
+            name: 'selectedBranch',
+            message: '🔀 Choose a branch to check out:',
+            choices: branches.map(b => ({ name: b, value: b })),
+          },
+        ]);
+        selectedRef = selectedBranch;
+      } else {
+        const { selectedTag } = await inquirer.prompt([
+          {
+            type: 'list',
+            name: 'selectedTag',
+            message: '🏷️ Choose a tag to check out:',
+            choices: tags.map(t => ({ name: t, value: t })),
+          },
+        ]);
+        selectedRef = selectedTag;
+      }
     } else {
-      const { selectedTag } = await inquirer.prompt([
-        {
-          type: 'list',
-          name: 'selectedTag',
-          message: '🏷️ Choose a tag to check out:',
-          choices: tags.map(t => ({ name: t, value: t })),
-        },
-      ]);
-      selectedRef = selectedTag;
+      console.log(chalk.green(`✅ Proceeding with default branch: '${selectedRef}'`));
     }
   }
 
-  console.log(chalk.green(`📥 Cloning '${selectedRef}' from ${opts.dev}...`));
+  console.log(chalk.green(`📥 Cloning '${selectedRef}' from ${opts.dev} into temporary folder (auto-deleted)...`));
   await git.clone(opts.dev, repoPath, ['--branch', selectedRef, '--single-branch']);
   console.log(chalk.green('✅ Cloning completed.'));
   return repoPath;
