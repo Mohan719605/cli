@@ -34,7 +34,7 @@ portal-upgrade upgrade --dev <dev_repo_path_or_git_url> --tag <branch_name>
 | `--dev`    | **REQUIRED.** Path to dev repo or remote Git URL | `--dev ../dev-portal`                        |
 | `--branch` | Branch to use (with git source only)             | `--branch feature/new-ui`                    |
 | `--tag`    | Tag to checkout (with git source only)           | `--tag v2.1.0`                               |
-| `--files`  | JSON filecontaining the file list for upgrade    | `--files next.config.js,.env,package.json`   |
+| `--files`  | JSON filecontaining the file list for upgrade    | `--files config.json`   |
 
 ## Default Files Option
 ### If you haven't added --files option. CLI will show default files 
