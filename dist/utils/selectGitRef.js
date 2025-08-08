@@ -74,7 +74,7 @@ async function cloneWithRef(opts) {
     else {
         console.log(chalk_1.default.green(`✅ No branch or tag specified. Proceeding with default branch: '${selectedRef}'`));
     }
-    console.log(chalk_1.default.green(`📥 Processing '${selectedRef}' from ${opts.dev} into temporary folder (auto-deleted)...`));
+    console.log(chalk_1.default.green(`📥 Processing '${selectedRef}' from ${opts.dev}`));
     await git.clone(opts.dev, repoPath, ['--branch', selectedRef, '--single-branch']);
     console.log(chalk_1.default.green('✅ Processing completed.'));
     return repoPath;

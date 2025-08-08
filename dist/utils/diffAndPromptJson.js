@@ -8,6 +8,17 @@ const chalk_1 = __importDefault(require("chalk"));
 const cli_table3_1 = __importDefault(require("cli-table3"));
 const inquirer_1 = __importDefault(require("inquirer"));
 const fs_extra_1 = __importDefault(require("fs-extra"));
+const excludeKeys = [
+    "@sapiens-digital/sapiens-base-components",
+    "@sapiens-digital/shared-components-kit",
+];
+function stringify(val) {
+    if (typeof val === 'object' && val !== null)
+        return JSON.stringify(val);
+    if (val === undefined)
+        return '-';
+    return String(val);
+}
 function compareJsonObjects(oldObj, newObj) {
     const keys = new Set([...Object.keys(oldObj), ...Object.keys(newObj)]);
     const diff = [];
@@ -20,12 +31,24 @@ function compareJsonObjects(oldObj, newObj) {
     }
     return diff;
 }
-function stringify(val) {
-    if (typeof val === 'object' && val !== null)
-        return JSON.stringify(val);
-    if (val === undefined)
-        return '-';
-    return String(val);
+/**
+ * Compare two dependency objects:
+ * - Exclude @sapiens/* keys from diff
+ * - Return diffs for other keys only
+ */
+function compareJsonObjectsFilter(oldDeps, newDeps) {
+    const diffs = [];
+    const keys = new Set([...Object.keys(oldDeps), ...Object.keys(newDeps)]);
+    for (const key of keys) {
+        if (key.startsWith('@sapiens-digital/') && !excludeKeys.includes(key))
+            continue; // exclude sapiens in diffs
+        const oldVal = oldDeps[key] ?? '-';
+        const newVal = newDeps[key] ?? '-';
+        if (oldVal !== newVal) {
+            diffs.push([key, oldVal, newVal]);
+        }
+    }
+    return diffs;
 }
 async function showDiffAndPromptJson(deliveryPath, devPath, writePath) {
     const [oldRaw, newRaw] = await Promise.all([
@@ -34,64 +57,174 @@ async function showDiffAndPromptJson(deliveryPath, devPath, writePath) {
     ]);
     const oldJson = JSON.parse(oldRaw);
     const newJson = JSON.parse(newRaw);
-    const allSections = new Set([...Object.keys(oldJson), ...Object.keys(newJson)]);
+    // Check if either file path ends with package.json (case-sensitive)
+    const isPackageJson = deliveryPath.endsWith('package.json') || devPath.endsWith('package.json');
     const changesToApply = [];
-    for (const section of allSections) {
-        const oldSection = oldJson[section];
-        const newSection = newJson[section];
-        const isObject = typeof oldSection === 'object' &&
-            typeof newSection === 'object' &&
-            !Array.isArray(oldSection) &&
-            oldSection !== null &&
-            newSection !== null;
-        let diffs = [];
-        if (isObject) {
-            diffs = compareJsonObjects(oldSection, newSection);
+    if (isPackageJson) {
+        const sectionsToCompare = ['dependencies', 'devDependencies'];
+        for (const section of sectionsToCompare) {
+            const oldDeps = oldJson[section] ?? {};
+            const newDeps = newJson[section] ?? {};
+            if (section === 'dependencies') {
+                const sapiensKeys = Object.keys(oldDeps).filter((k) => k.startsWith("@sapiens-digital/") && !excludeKeys.includes(k));
+                // Determine default sapiens version from first sapiens dependency in newDeps, if any
+                const defaultSapiensVersion = sapiensKeys.length > 0 ? oldDeps[sapiensKeys[0]] : undefined;
+                let sapiensVersion;
+                if (sapiensKeys.length > 0) {
+                    const answer = await inquirer_1.default.prompt([
+                        {
+                            type: 'input',
+                            name: 'inputVersion',
+                            message: `Enter version for all @sapiens dependencies (old-version: ${defaultSapiensVersion ?? 'keep old versions'}):`,
+                            default: defaultSapiensVersion ?? '',
+                        },
+                    ]);
+                    sapiensVersion = answer.inputVersion.trim() || undefined;
+                    console.log(chalk_1.default.magentaBright(`\n✨ All @sapiens dependencies will be updated to version: ${sapiensVersion ?? '[keeping old versions]'}`));
+                    // Immediately add sapiens changes (without showing diff)
+                    for (const sapiensKey of sapiensKeys) {
+                        if (sapiensVersion) {
+                            changesToApply.push({
+                                section,
+                                key: sapiensKey,
+                                newVal: sapiensVersion,
+                            });
+                        }
+                        // else keep old version
+                    }
+                }
+                // Compare and prompt for non-sapiens dependencies only
+                const diffs = compareJsonObjectsFilter(oldDeps, newDeps);
+                if (diffs.length === 0 && sapiensKeys.length === 0)
+                    continue;
+                if (diffs.length > 0) {
+                    console.log(chalk_1.default.cyan.bold(`\n📦 ${section}`));
+                    const table = new cli_table3_1.default({
+                        head: [chalk_1.default.gray('Key'), chalk_1.default.gray('Delivery Repo'), chalk_1.default.gray('Dev Repo')],
+                        colWidths: [30, 30, 30],
+                        wordWrap: true,
+                    });
+                    for (const [key, oldVal, newVal] of diffs) {
+                        table.push([
+                            key,
+                            chalk_1.default.red(oldVal || '-'),
+                            chalk_1.default.green(newVal || '-'),
+                        ]);
+                    }
+                    console.log(table.toString());
+                    const { selectedKeys } = await inquirer_1.default.prompt([
+                        {
+                            type: 'checkbox',
+                            name: 'selectedKeys',
+                            message: `Select keys to apply from ${section}:`,
+                            choices: diffs.map(([key]) => ({
+                                name: key,
+                                value: key,
+                                checked: true,
+                            })),
+                        },
+                    ]);
+                    for (const key of selectedKeys) {
+                        const newVal = newDeps[key];
+                        changesToApply.push({ section, key, newVal });
+                    }
+                }
+            }
+            else {
+                // For devDependencies just normal compare and prompt
+                const diffs = compareJsonObjects(oldDeps, newDeps);
+                if (diffs.length === 0)
+                    continue;
+                console.log(chalk_1.default.cyan.bold(`\n📦 ${section}`));
+                const table = new cli_table3_1.default({
+                    head: [chalk_1.default.gray('Key'), chalk_1.default.gray('Delivery Repo'), chalk_1.default.gray('Dev Repo')],
+                    colWidths: [30, 30, 30],
+                    wordWrap: true,
+                });
+                for (const [key, oldVal, newVal] of diffs) {
+                    table.push([
+                        key,
+                        chalk_1.default.red(oldVal || '-'),
+                        chalk_1.default.green(newVal || '-'),
+                    ]);
+                }
+                console.log(table.toString());
+                const { selectedKeys } = await inquirer_1.default.prompt([
+                    {
+                        type: 'checkbox',
+                        name: 'selectedKeys',
+                        message: `Select keys to apply from ${section}:`,
+                        choices: diffs.map(([key]) => ({
+                            name: key,
+                            value: key,
+                            checked: true,
+                        })),
+                    },
+                ]);
+                for (const key of selectedKeys) {
+                    const newVal = newDeps[key];
+                    changesToApply.push({ section, key, newVal });
+                }
+            }
         }
-        else if (oldSection !== newSection) {
-            diffs = [[section, stringify(oldSection), stringify(newSection)]];
-        }
-        else {
-            continue;
-        }
-        if (diffs.length === 0)
-            continue;
-        console.log(chalk_1.default.cyan.bold(`\n📦 ${isObject ? section : 'Top-Level Keys'}`));
-        const table = new cli_table3_1.default({
-            head: [chalk_1.default.gray('Key'), chalk_1.default.gray('Delivery Repo'), chalk_1.default.gray('Dev Repo')],
-            colWidths: [30, 30, 30],
-            wordWrap: true,
-        });
-        for (const [key, oldVal, newVal] of diffs) {
-            table.push([
-                key,
-                chalk_1.default.red(oldVal || '-'),
-                chalk_1.default.green(newVal || '-'),
+    }
+    else {
+        // Non-package.json: compare all sections fully
+        const allSections = new Set([...Object.keys(oldJson), ...Object.keys(newJson)]);
+        for (const section of allSections) {
+            const oldSection = oldJson[section];
+            const newSection = newJson[section];
+            const isObject = typeof oldSection === 'object' &&
+                typeof newSection === 'object' &&
+                !Array.isArray(oldSection) &&
+                oldSection !== null &&
+                newSection !== null;
+            let diffs = [];
+            if (isObject) {
+                diffs = compareJsonObjects(oldSection, newSection);
+            }
+            else if (JSON.stringify(oldSection) !== JSON.stringify(newSection)) {
+                diffs = [[section, stringify(oldSection), stringify(newSection)]];
+            }
+            if (diffs.length === 0)
+                continue;
+            console.log(chalk_1.default.cyan.bold(`\n📦 ${isObject ? section : 'Top-Level Keys'}`));
+            const table = new cli_table3_1.default({
+                head: [chalk_1.default.gray('Key'), chalk_1.default.gray('Delivery Repo'), chalk_1.default.gray('Dev Repo')],
+                colWidths: [30, 30, 30],
+                wordWrap: true,
+            });
+            for (const [key, oldVal, newVal] of diffs) {
+                table.push([
+                    key,
+                    chalk_1.default.red(oldVal || '-'),
+                    chalk_1.default.green(newVal || '-'),
+                ]);
+            }
+            console.log(table.toString());
+            const { selectedKeys } = await inquirer_1.default.prompt([
+                {
+                    type: 'checkbox',
+                    name: 'selectedKeys',
+                    message: `Select keys to apply from ${isObject ? section : 'Top-Level'}:`,
+                    choices: diffs.map(([key]) => ({
+                        name: key,
+                        value: key,
+                        checked: true,
+                    })),
+                },
             ]);
-        }
-        console.log(table.toString());
-        const { selectedKeys } = await inquirer_1.default.prompt([
-            {
-                type: 'checkbox',
-                name: 'selectedKeys',
-                message: `Select keys to apply from ${isObject ? section : 'Top-Level'}:`,
-                choices: diffs.map(([key]) => ({
-                    name: key,
-                    value: key,
-                    checked: true,
-                })),
-            },
-        ]);
-        for (const key of selectedKeys) {
-            const newVal = isObject ? newSection[key] : newSection;
-            changesToApply.push({ section, key, newVal });
+            for (const key of selectedKeys) {
+                const newVal = isObject ? newSection[key] : newSection;
+                changesToApply.push({ section, key, newVal });
+            }
         }
     }
     if (changesToApply.length === 0) {
         console.log(chalk_1.default.yellow('✅ No changes selected.'));
         return;
     }
-    // Final review
+    // Final review prompt
     const finalChoices = await inquirer_1.default.prompt([
         {
             type: 'checkbox',
@@ -102,7 +235,7 @@ async function showDiffAndPromptJson(deliveryPath, devPath, writePath) {
                 value: `${section}:::${key}`,
                 checked: true,
             })),
-            pageSize: 15, // optional: allows better scrolling for long lists
+            pageSize: 15,
         },
     ]);
     const finalSet = new Set(finalChoices.finalKeys);
@@ -111,6 +244,7 @@ async function showDiffAndPromptJson(deliveryPath, devPath, writePath) {
         console.log(chalk_1.default.red('❌ All changes were deselected. Aborting write.'));
         return;
     }
+    // Apply changes into oldJson object
     for (const { section, key, newVal } of filteredChanges) {
         const isObject = typeof oldJson[section] === 'object' && oldJson[section] !== null;
         if (isObject) {
@@ -122,6 +256,7 @@ async function showDiffAndPromptJson(deliveryPath, devPath, writePath) {
             oldJson[section] = newVal;
         }
     }
+    // Confirm write
     const { confirmWrite } = await inquirer_1.default.prompt([
         {
             type: 'confirm',

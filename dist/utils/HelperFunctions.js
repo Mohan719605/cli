@@ -77,6 +77,17 @@ function generateDiff(oldLines, newLines) {
     }
     return diffs;
 }
+/*
+oldLines = ["A", "B", "C"]
+newLines = ["B", "C", "A"]
+
+  [
+  { op: "move", text: "A", moved: true, fromIndex: 0, toIndex: 2 },
+  { op: "equal", text: "B" },
+  { op: "equal", text: "C" },
+  { op: "move", text: "A", moved: true, fromIndex: 0, toIndex: 2 }
+]
+*/
 function parseRange(str) {
     const match = str.trim().match(/^(\d+)(?:-(\d+))?$/);
     if (!match)

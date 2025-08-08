@@ -10,7 +10,7 @@ const chalk_1 = __importDefault(require("chalk"));
 const inquirer_1 = __importDefault(require("inquirer"));
 const diffAndPrompt_1 = require("../utils/diffAndPrompt");
 const portalsListConfig_1 = require("../utils/portalsListConfig");
-const selectGitRef_1 = require("../utils/selectGitRef"); // ✅ import helper
+const selectGitRef_1 = require("../utils/selectGitRef");
 const defaultFiles = [
     { name: 'Next Config File', filename: 'next.config.js' },
     { name: 'Env File', filename: '.env' },
@@ -22,12 +22,38 @@ const defaultFiles = [
 function isGitUrl(url) {
     return url.startsWith('http') || url.endsWith('.git');
 }
-async function upgradeCommand(opts) {
-    if (!opts.dev) {
-        console.error('❌ Please provide --dev <path_or_git_url>');
+// Helper to load files array from package.json (or general JSON file path)
+async function loadFilesFromJson(jsonFilePath) {
+    if (!await fs_extra_1.default.pathExists(jsonFilePath)) {
+        console.error(chalk_1.default.red(`❌ File not found at: ${jsonFilePath}`));
         process.exit(1);
     }
-    let selectedFiles;
+    try {
+        const content = await fs_extra_1.default.readFile(jsonFilePath, 'utf-8');
+        const json = JSON.parse(content);
+        // Assuming file list is at json.upgradeFiles (adjust key as needed)
+        if (!json.upgradeFiles || !Array.isArray(json.upgradeFiles)) {
+            console.error(chalk_1.default.red(`❌ Missing or invalid 'upgradeFiles' array in ${jsonFilePath}`));
+            process.exit(1);
+        }
+        // Validate array elements are strings
+        if (!json.upgradeFiles.every((f) => typeof f === 'string')) {
+            console.error(chalk_1.default.red(`❌ 'upgradeFiles' should be an array of strings in ${jsonFilePath}`));
+            process.exit(1);
+        }
+        return json.upgradeFiles;
+    }
+    catch (err) {
+        console.error(chalk_1.default.red(`❌ Failed to parse JSON from ${jsonFilePath}: ${err.message}`));
+        process.exit(1);
+    }
+}
+async function upgradeCommand(opts) {
+    if (!opts.dev) {
+        console.error(chalk_1.default.red('❌ Please provide --dev <path_or_git_url>'));
+        process.exit(1);
+    }
+    let selectedFiles = [];
     let devRepoPath = '';
     if (isGitUrl(opts.dev)) {
         devRepoPath = await (0, selectGitRef_1.cloneWithRef)({ dev: opts.dev, branch: opts.branch, tag: opts.tag });
@@ -37,13 +63,14 @@ async function upgradeCommand(opts) {
     }
     const deliveryRepo = process.cwd();
     if (!opts.files) {
+        console.log(chalk_1.default.bold.yellow("⚠️  No custom files were selected. Here are some default files — which one would you like to edit?"));
         const { selected } = await inquirer_1.default.prompt([
             {
                 type: 'checkbox',
                 name: 'selected',
                 message: 'Select files to compare and upgrade:',
                 choices: defaultFiles.map(file => ({
-                    name: file.name + ` (${file.filename})`,
+                    name: `${file.name} (${file.filename})`,
                     value: file.filename,
                     checked: true,
                 })),
@@ -51,6 +78,7 @@ async function upgradeCommand(opts) {
             },
         ]);
         selectedFiles = selected;
+        // For each selected file ask portal location and process
         for (const filename of selectedFiles) {
             const fileMeta = defaultFiles.find(f => f.filename === filename);
             let finalPath = '';
@@ -82,16 +110,22 @@ async function upgradeCommand(opts) {
         }
     }
     else {
-        selectedFiles = opts.files.split(',').map(f => f.trim());
-    }
-    for (const finalPath of selectedFiles) {
-        const devPath = path_1.default.join(devRepoPath, finalPath);
-        const deliveryPath = path_1.default.join(deliveryRepo, finalPath);
-        if (await fs_extra_1.default.pathExists(devPath) && await fs_extra_1.default.pathExists(deliveryPath)) {
-            await (0, diffAndPrompt_1.showDiffAndPrompt)(deliveryPath, devPath, finalPath);
-        }
-        else {
-            console.warn(`⚠️  Missing file in one of the repos: ${chalk_1.default.yellow(finalPath)}`);
+        // --files option is provided:
+        // Treat opts.files as a path to a JSON file (e.g. package.json) containing upgradeFiles array
+        const jsonFilePath = path_1.default.isAbsolute(opts.files)
+            ? opts.files
+            : path_1.default.join(process.cwd(), opts.files);
+        selectedFiles = await loadFilesFromJson(jsonFilePath);
+        // now process files directly without prompts
+        for (const finalPath of selectedFiles) {
+            const devPath = path_1.default.join(devRepoPath, finalPath);
+            const deliveryPath = path_1.default.join(deliveryRepo, finalPath);
+            if (await fs_extra_1.default.pathExists(devPath) && await fs_extra_1.default.pathExists(deliveryPath)) {
+                await (0, diffAndPrompt_1.showDiffAndPrompt)(deliveryPath, devPath, finalPath);
+            }
+            else {
+                console.warn(`⚠️  Missing file in one of the repos: ${chalk_1.default.yellow(finalPath)}`);
+            }
         }
     }
     console.log(chalk_1.default.green.bold('\n🎉 Upgrade process finished!'));

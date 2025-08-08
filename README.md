@@ -15,7 +15,7 @@ npm install -g .
 Open Terminal in your template or delivery repo
 
 ```bash
-portal-upgrade upgrade --dev <dev_repo_path_or_git_url> --files <comma_separated_files>
+portal-upgrade upgrade --dev <dev_repo_path_or_git_url> '--files <config.json_file_path>', 'Path to JSON file (e.g., config.json) containing the file list for upgrade'
 ```
 Usage with Branch Option
 
@@ -34,10 +34,7 @@ portal-upgrade upgrade --dev <dev_repo_path_or_git_url> --tag <branch_name>
 | `--dev`    | **REQUIRED.** Path to dev repo or remote Git URL | `--dev ../dev-portal`                        |
 | `--branch` | Branch to use (with git source only)             | `--branch feature/new-ui`                    |
 | `--tag`    | Tag to checkout (with git source only)           | `--tag v2.1.0`                               |
-| `--files`  | Comma-separated list of files to compare         | `--files next.config.js,.env,package.json`   |
-### Else You can select the branch and tag from command line
-![alt text](image.png)
-![alt text](image-1.png)
+| `--files`  | JSON filecontaining the file list for upgrade    | `--files next.config.js,.env,package.json`   |
 
 ## Default Files Option
 ### If you haven't added --files option. CLI will show default files 
@@ -54,13 +51,26 @@ portal-upgrade upgrade --dev https://github.com/Sapiens-Digital01/sapiens-digita
 ```
 
 ## Example Command with Files tag
+config.json file sample
+```bash
+{
+  "upgradeFiles": [
+
+    "next.config.js",
+    "./apps/agent-portal/tsconfig.json",
+    "./apps/agent-portal/package.json"
+
+  ]
+}
+```
+
 If local file
 ```bash
-portal-upgrade upgrade --dev C:\sapiens-projects\sapiens-digital-portal --files ./apps/agent-portal/next.config.js
+portal-upgrade upgrade --dev C:\sapiens-projects\sapiens-digital-portal --files config.json
 ```
 If from remote-repo
 ```bash
-portal-upgrade upgrade --dev https://github.com/Sapiens-Digital01/sapiens-digital-portal.git --files ./apps/agent-portal/next.config.js
+portal-upgrade upgrade --dev https://github.com/Sapiens-Digital01/sapiens-digital-portal.git --files config.json
 ```
 
 
